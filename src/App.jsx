@@ -168,7 +168,7 @@ export default function App() {
         <div className="grid md:grid-cols-3 gap-6">
           <Card>
             <h3 className="font-semibold">Materials mastery</h3>
-            <p className="text-sm text-zinc-700 mt-2">Meta‑aramid (Nomex®‑type) & para‑aramid expertise — converting fibers into robust threads, fabrics, and PPE components.</p>
+            <p className="text-sm text-zinc-700 mt-2">Meta‑aramid & para‑aramid expertise — converting fibers into robust threads, fabrics, and PPE components.</p>
           </Card>
           <Card>
             <h3 className="font-semibold">Quality & compliance</h3>
@@ -176,7 +176,7 @@ export default function App() {
           </Card>
           <Card>
             <h3 className="font-semibold">Scale‑ready network</h3>
-            <p className="text-sm text-zinc-700 mt-2">Partner spinning/weaving/finishing; in‑house doubling & cone winding to shorten lead times.</p>
+            <p className="text-sm text-zinc-700 mt-2"> Spinning/weaving/finishing; in‑house doubling & cone winding to shorten lead times.</p>
           </Card>
         </div>
       </Section>
@@ -195,7 +195,7 @@ export default function App() {
         id="contact"
         eyebrow="Contact"
         title="Talk to our team"
-        lead="Submit specs or drawings — we'll respond with the right thread, fabric, or PPE program. This form is powered by Netlify Forms."
+        lead="Submit specs or drawings — we'll respond with the right thread, fabric, or PPE program."
       >
         <div className="grid md:grid-cols-2 gap-6">
           <Card>
