@@ -324,9 +324,9 @@ function Home() {
               </GlowButton>
             </div>
             <div className="mt-6 flex flex-wrap gap-2">
-              <Pill>Spec‑driven sourcing</Pill>
-              <Pill>Low‑CAPEX phase‑in</Pill>
-              <Pill>Export‑ready</Pill>
+              <Pill>Advanced Materials Expertise</Pill>
+              <Pill>End-to-End Reliability</Pill>
+              <Pill>Innovative Performance Design</Pill>
             </div>
           </div>
         </Container>
