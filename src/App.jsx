@@ -13,20 +13,26 @@ import {
 } from "lucide-react";
 
 /**
- * Artan Protec — Advanced/Technical visual style (Multipage, URL‑safe, no Router deps)
- * -------------------------------------------------------------------------------
- * Fix for: `TypeError: Failed to construct 'URL': Invalid URL`
- * Root cause: Some environments/sandboxes choke on `react-router-dom`'s internal
- * URL resolution (e.g., `new URL(to, base)` when base isn't set). To make this
- * bulletproof everywhere (including Netlify, local dev, and code runners), we
- * implement a very small **hash-based router** instead of using Link/NavLink.
+ * Artan Protec — Advanced/Technical visual style (Multipage, URL‑safe, no router deps)
+ * -----------------------------------------------------------------------------------
+ * Fix for: `TypeError: Failed to construct 'URL': Invalid URL` + JSX merge artifacts
+ * Root causes addressed:
+ *  - Environments that don't provide a good base URL for SPA routers.
+ *  - Incorrect/undefined hrefs causing URL construction.
+ *  - A stray set of closing JSX tags left after the Home() component (syntax error).
  *
- * - Navigation uses anchors like `href="#/corethread"`.
- * - The current page is derived from `window.location.hash`.
- * - No `react-router-dom` required. (You can remove it from package.json if you want.)
- * - Keep Tailwind import in `src/main.jsx` (e.g., `import './index.css'`).
- * - Public assets: `/artan-protec-logo.png`, `/artan-protec-logo-mark.png`, and
- *   PDFs in `/brochures/...`.
+ * Solution:
+ *  - Tiny, dependency‑free **hash router** using anchors like `#/corethread`.
+ *  - Safe URL adapter `toHref()` that normalizes internal paths → `#/*` and leaves
+ *    files/external links intact. Handles undefined/empty strings safely.
+ *  - <GlowButton> only renders <a> when href is valid; otherwise a <button>.
+ *  - Submit buttons in forms use type="submit" so Netlify forms work properly.
+ *  - Removed stray, duplicated closing tags after Home() (fixed SyntaxError at ~617:9).
+ *
+ * Notes:
+ *  - Keep Tailwind in src/main.jsx:  import './index.css'
+ *  - Public assets: /artan-protec-logo.png, /artan-protec-logo-mark.png
+ *  - PDFs in /brochures: artan-corethread.pdf, artan-armorweave.pdf, artan-ppe.pdf
  */
 
 // ----------------------------- UI Primitives ------------------------------
@@ -49,21 +55,32 @@ const Section = ({ id, eyebrow, title, lead, children }) => (
   </section>
 );
 
-// Convert arbitrary hrefs into safe anchors.
-function toHref(href) {
-  if (!href) return undefined;
-  // External or file download → use as-is
-  if (/^https?:\/\//i.test(href) || /\.(pdf|zip|docx?|xlsx?)($|\?)/i.test(href) || href.startsWith("/brochures/")) {
-    return href;
-  }
-  // Internal app routes → hash
-  if (href.startsWith("/")) return `#${href}`; // e.g. "/corethread" => "#/corethread"
-  if (href.startsWith("#")) return href; // already a hash
-  // Fallback: treat as relative route
-  return `#/${href.replace(/^#?\/?/, "")}`;
+// ----------------------------- URL Helpers --------------------------------
+function isExternalOrFile(href = "") {
+  return (
+    /^https?:\/\//i.test(href) ||
+    href.startsWith("mailto:") ||
+    href.startsWith("tel:") ||
+    href.startsWith("data:") ||
+    href.startsWith("blob:") ||
+    /\.(pdf|zip|docx?|xlsx?)($|\?)/i.test(href) ||
+    href.startsWith("/brochures/")
+  );
 }
 
-const GlowButton = ({ href, children, variant = "primary" }) => {
+// Convert arbitrary hrefs into safe anchors for internal routes.
+function toHref(href) {
+  if (!href || typeof href !== "string") return undefined;
+  const trimmed = href.trim();
+  if (!trimmed) return undefined;
+  if (isExternalOrFile(trimmed)) return trimmed; // leave as-is
+  if (trimmed.startsWith("#")) return trimmed; // already a hash
+  if (trimmed.startsWith("/")) return `#${trimmed}`; // absolute app path → hash route
+  // relative app path → ensure single leading slash under hash
+  return `#/${trimmed.replace(/^#?\/?/, "")}`;
+}
+
+const GlowButton = ({ href, children, variant = "primary", newTab = false, type = "button" }) => {
   const base =
     "relative inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition focus:outline-none";
   const variants = {
@@ -72,11 +89,18 @@ const GlowButton = ({ href, children, variant = "primary" }) => {
     ghost: "border border-white/20 bg-white/5 text-white hover:bg-white/10",
   };
   const content = <span className={`${base} ${variants[variant]}`}>{children}</span>;
+
   const safeHref = toHref(href);
-  if (!safeHref) return <button>{content}</button>;
-  const isExternal = /^https?:\/\//i.test(safeHref);
+  if (!safeHref) {
+    return <button type={type}>{content}</button>;
+  }
+
+  const isExternal = isExternalOrFile(safeHref) && /^https?:/i.test(safeHref);
+  const target = newTab || isExternal ? "_blank" : undefined;
+  const rel = target ? "noreferrer" : undefined;
+
   return (
-    <a href={safeHref} className="no-underline" target={isExternal ? "_blank" : undefined} rel={isExternal ? "noreferrer" : undefined}>
+    <a href={safeHref} className="no-underline" target={target} rel={rel}>
       {content}
     </a>
   );
@@ -244,7 +268,7 @@ function Navbar() {
             {open && (
               <div onMouseLeave={() => setOpen(false)} className="absolute right-0 mt-2 w-64 rounded-xl bg-slate-900/90 ring-1 ring-white/10 backdrop-blur shadow-xl p-2">
                 {FAMILIES.map((f) => (
-                  <a key={f.id} href={toHref(f.path)} className="block rounded-lg px-3 py-2 text-slate-200 hover:bg-white/10">
+                  <a key={f.id} href={toHref(f.path)} className="block rounded-lg px-3 py-2 text-slate-200 hover:bg-white/10" onClick={() => setOpen(false)}>
                     {f.name}
                   </a>
                 ))}
@@ -270,6 +294,7 @@ function SiteFrame({ children }) {
       </div>
       <Navbar />
       {children}
+      <DevDiagnostics />
       <Footer />
     </div>
   );
@@ -301,8 +326,38 @@ function Footer() {
 
 // --------------------------- Pages --------------------------------------
 function Home() {
+  // simple carousel state for case studies
+  const cases = [
+    {
+      title: "Firefighter Jackets",
+      bullets: [
+        "Outer shell with ripstop ArmorWeave",
+        "CoreThread seams maintain integrity under heat",
+        "Optional moisture/comfort finishes",
+      ],
+    },
+    {
+      title: "Industrial Gloves",
+      bullets: [
+        "Para-aramid blends for cut/heat resistance",
+        "Cone‑wound CoreThread for consistent stitch",
+        "Programmatic sizing & private labeling",
+      ],
+    },
+    {
+      title: "Thermal Barriers",
+      bullets: [
+        "Targeted GSM fabrics for insulation",
+        "Liner options for comfort & moisture",
+        "Batch traceability for audits",
+      ],
+    },
+  ];
+  const [caseIdx, setCaseIdx] = useState(0);
+
   return (
     <>
+      {/* HERO */}
       <section id="home" className="relative overflow-hidden">
         <Container className="pt-16 pb-24">
           <div className="max-w-3xl">
@@ -310,10 +365,10 @@ function Home() {
               Aramid Materials • FRR Fabrics • Industrial PPE
             </div>
             <h1 className="mt-4 text-4xl sm:text-6xl font-extrabold leading-tight">
-              Engineered FR performance from fiber to finished gear
+              Advanced Protection. Engineered Performance.
             </h1>
             <p className="mt-5 text-lg text-slate-300">
-              High‑strength, heat‑resistant yarns & threads (CoreThread), FR fabrics (ArmorWeave), and select PPE assemblies (ArmorShield) for critical environments.
+              High‑strength, heat‑resistant yarns & threads (CoreThread), FR fabrics (ArmorWeave), and select PPE assemblies (ArmorShield) for mission‑critical environments.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <GlowButton href="/corethread">
@@ -324,15 +379,54 @@ function Home() {
               </GlowButton>
             </div>
             <div className="mt-6 flex flex-wrap gap-2">
-              <Pill>Advanced Materials Expertise</Pill>
-              <Pill>End-to-End Reliability</Pill>
-              <Pill>Innovative Performance Design</Pill>
+              <Pill>Spec‑driven sourcing</Pill>
+              <Pill>Low‑CAPEX phase‑in</Pill>
+              <Pill>Export‑ready</Pill>
             </div>
           </div>
         </Container>
       </section>
 
-      <Section eyebrow="Catalog" title="Artan Protec Product Lines" lead="Open a product line to view detailed specs, variants, and downloads.">
+      {/* ABOUT */}
+      <Section eyebrow="About" title="Artan Protec" lead="A specialized brand focused on aramid inputs and FR protective solutions — built for reliability, documentation, and scale.">
+        <div className="grid gap-6 md:grid-cols-2">
+          <GCard>
+            <p className="text-slate-200 text-sm">
+              We convert technical fibers into performance components: yarns & threads for high‑temperature seams, FR fabrics for shells/liners/barriers, and selected PPE assemblies to accelerate pilots. Our process emphasizes application fit, quality control, and consistent supply.
+            </p>
+            <ul className="mt-4 grid grid-cols-2 gap-3 text-sm text-slate-200">
+              <li className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4"/> Meta/para‑aramid expertise</li>
+              <li className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4"/> Batch documentation</li>
+              <li className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4"/> Shade & logo customization</li>
+              <li className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4"/> Export logistics ready</li>
+            </ul>
+          </GCard>
+          <GCard>
+            <h4 className="text-white font-semibold mb-2">At a glance</h4>
+            <div className="grid grid-cols-2 gap-4 text-sm text-slate-200">
+              <div>
+                <p className="text-slate-400">Product families</p>
+                <p className="text-white font-semibold">3</p>
+              </div>
+              <div>
+                <p className="text-slate-400">Target GSM range</p>
+                <p className="text-white font-semibold">150–280 (apparel)</p>
+              </div>
+              <div>
+                <p className="text-slate-400">Thread constructions</p>
+                <p className="text-white font-semibold">2–8 ply staple</p>
+              </div>
+              <div>
+                <p className="text-slate-400">Customization</p>
+                <p className="text-white font-semibold">Logos & shades</p>
+              </div>
+            </div>
+          </GCard>
+        </div>
+      </Section>
+
+      {/* PRODUCT LINES OVERVIEW */}
+      <Section eyebrow="Catalog" title="Product Lines" lead="Open a product line to view detailed specs, variants, and downloads.">
         <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
           {FAMILIES.map((fam) => (
             <GCard key={fam.id} className="hover:shadow-[0_0_60px_-10px_rgba(56,189,248,0.25)] transition">
@@ -346,10 +440,176 @@ function Home() {
                 </div>
               </div>
               <div className="mt-4">
-                <GlowButton href={fam.path} variant="ghost">Open</GlowButton>
+                <GlowButton href={fam.path} variant="ghost">Learn more</GlowButton>
               </div>
             </GCard>
           ))}
+        </div>
+      </Section>
+
+      {/* DIFFERENTIATORS */}
+      <Section eyebrow="Why Artan" title="What sets us apart">
+        <div className="grid gap-6 md:grid-cols-3">
+          <GCard>
+            <Feature icon={Layers3} title="Materials mastery">
+              Meta‑ & para‑aramid systems tuned from fiber to seam.
+            </Feature>
+          </GCard>
+          <GCard>
+            <Feature icon={CheckCircle2} title="Quality & compliance">
+              Documentation, batch traceability, and process control.
+            </Feature>
+          </GCard>
+          <GCard>
+            <Feature icon={ShieldCheck} title="Program flexibility">
+              Shade/logo customization and scalable partner network.
+            </Feature>
+          </GCard>
+        </div>
+      </Section>
+
+      {/* INDUSTRIES */}
+      <Section eyebrow="Industries" title="Where we fit" lead="Solutions aligned to sector requirements and safety expectations.">
+        <div className="grid gap-4 md:grid-cols-5 text-sm">
+          {[
+            "Defense",
+            "Industrial PPE",
+            "Fire Services",
+            "Utilities & Electrical",
+            "Oil & Gas",
+          ].map((name) => (
+            <div key={name} className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-slate-200 text-center hover:bg-white/10">
+              {name}
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      {/* CERTIFICATIONS */}
+      <Section eyebrow="Standards" title="Certifications & standards">
+        <GCard>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-slate-300">
+            <div className="rounded-lg bg-white/5 px-3 py-2 text-center">ISO (process)
+            </div>
+            <div className="rounded-lg bg-white/5 px-3 py-2 text-center">ASTM / NFPA (app‑specific)
+            </div>
+            <div className="rounded-lg bg-white/5 px-3 py-2 text-center">BIS (where applicable)
+            </div>
+            <div className="rounded-lg bg-white/5 px-3 py-2 text-center">Documentation support
+            </div>
+          </div>
+        </GCard>
+      </Section>
+
+      {/* CASE STUDIES CAROUSEL (simple) */}
+      <Section eyebrow="Use cases" title="Applications in the field">
+        <GCard>
+          <div className="flex items-start justify-between gap-6">
+            <div>
+              <h4 className="text-white font-semibold">{cases[caseIdx].title}</h4>
+              <ul className="mt-2 list-disc pl-5 text-slate-200 text-sm">
+                {cases[caseIdx].bullets.map((b) => (
+                  <li key={b}>{b}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="flex items-center gap-2">
+              {cases.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setCaseIdx(i)}
+                  aria-label={`Show case ${i + 1}`}
+                  className={`h-2.5 w-2.5 rounded-full ${i === caseIdx ? "bg-white" : "bg-white/30"}`}
+                />
+              ))}
+            </div>
+          </div>
+        </GCard>
+      </Section>
+
+      {/* INTERACTIVE TECH DIAGRAM */}
+      <Section eyebrow="Tech" title="Cross‑section: protective layer stack" lead="Hover layers to reveal composition & function.">
+        <GCard>
+          <div className="grid md:grid-cols-2 gap-6 items-center">
+            {/* SVG: stacked layers */}
+            <svg viewBox="0 0 320 260" className="w-full h-auto">
+              <defs>
+                <linearGradient id="g1" x1="0" x2="1">
+                  <stop offset="0%" stopColor="#22d3ee" stopOpacity="0.35" />
+                  <stop offset="100%" stopColor="#2563eb" stopOpacity="0.35" />
+                </linearGradient>
+                <linearGradient id="g2" x1="0" x2="1">
+                  <stop offset="0%" stopColor="#a78bfa" stopOpacity="0.35" />
+                  <stop offset="100%" stopColor="#22d3ee" stopOpacity="0.35" />
+                </linearGradient>
+                <linearGradient id="g3" x1="0" x2="1">
+                  <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.35" />
+                  <stop offset="100%" stopColor="#ef4444" stopOpacity="0.35" />
+                </linearGradient>
+              </defs>
+              {/* base */}
+              <rect x="10" y="220" width="300" height="20" fill="#0b1220" stroke="#334155" />
+              {/* layers */}
+              <g className="group">
+                <rect x="30" y="180" width="260" height="24" fill="url(#g1)" stroke="#22d3ee" className="transition duration-200 group-hover:opacity-90" />
+                <text x="40" y="196" fill="#dbeafe" fontSize="10">ArmorWeave: Outer shell (ripstop/twill)</text>
+              </g>
+              <g className="group">
+                <rect x="40" y="150" width="240" height="22" fill="url(#g2)" stroke="#a78bfa" className="transition duration-200 group-hover:opacity-90" />
+                <text x="50" y="165" fill="#e9d5ff" fontSize="10">Liner: comfort & moisture options</text>
+              </g>
+              <g className="group">
+                <rect x="50" y="120" width="220" height="20" fill="url(#g3)" stroke="#f59e0b" className="transition duration-200 group-hover:opacity-90" />
+                <text x="60" y="134" fill="#fee2e2" fontSize="10">Barrier: thermal/arc reinforcement</text>
+              </g>
+              <g className="group">
+                <rect x="60" y="90" width="200" height="18" fill="#0ea5e9" opacity="0.25" stroke="#38bdf8" />
+                <text x="70" y="103" fill="#bae6fd" fontSize="10">Seams: CoreThread aramid sewing</text>
+              </g>
+            </svg>
+
+            {/* Legend */}
+            <div>
+              <div className="space-y-3 text-sm text-slate-200">
+                <div className="flex items-start gap-3">
+                  <div className="h-3 w-3 rounded-sm" style={{ background: "linear-gradient(90deg,#22d3ee66,#2563eb66)" }} />
+                  <div>
+                    <p className="text-white font-medium">ArmorWeave outer shell</p>
+                    <p className="text-slate-400">Ripstop/twill, shade options, abrasion resistance.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="h-3 w-3 rounded-sm" style={{ background: "linear-gradient(90deg,#a78bfa66,#22d3ee66)" }} />
+                  <div>
+                    <p className="text-white font-medium">Comfort liner</p>
+                    <p className="text-slate-400">Moisture/comfort finishes for extended wear.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="h-3 w-3 rounded-sm" style={{ background: "linear-gradient(90deg,#f59e0b66,#ef444466)" }} />
+                  <div>
+                    <p className="text-white font-medium">Thermal/arc barrier</p>
+                    <p className="text-slate-400">Higher GSM or blends to meet protection targets.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="h-3 w-3 rounded-sm bg-sky-400/40" />
+                  <div>
+                    <p className="text-white font-medium">CoreThread seams</p>
+                    <p className="text-slate-400">Aramid threads and constructions for seam integrity.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </GCard>
+      </Section>
+
+      {/* CTA */}
+      <Section eyebrow="Get started" title="Spec a material or request a pilot">
+        <div className="flex flex-wrap gap-3">
+          <GlowButton href="/downloads" variant="ghost"><Download className="h-4 w-4"/> Download brochures</GlowButton>
+          <GlowButton href="/contact"><Mail className="h-4 w-4"/> Contact sales</GlowButton>
         </div>
       </Section>
     </>
@@ -415,13 +675,13 @@ function Downloads() {
   return (
     <Section eyebrow="Downloads" title="Brochures & spec sheets">
       <div className="flex flex-wrap gap-3">
-        <GlowButton href="/brochures/artan-corethread.pdf" variant="ghost">
+        <GlowButton href="/brochures/artan-corethread.pdf" variant="ghost" newTab>
           <Download className="h-4 w-4" /> CoreThread
         </GlowButton>
-        <GlowButton href="/brochures/artan-armorweave.pdf" variant="ghost">
+        <GlowButton href="/brochures/artan-armorweave.pdf" variant="ghost" newTab>
           <Download className="h-4 w-4" /> ArmorWeave
         </GlowButton>
-        <GlowButton href="/brochures/artan-ppe.pdf" variant="ghost">
+        <GlowButton href="/brochures/artan-ppe.pdf" variant="ghost" newTab>
           <Download className="h-4 w-4" /> PPE Program
         </GlowButton>
       </div>
@@ -456,7 +716,7 @@ function Contact() {
             <input required type="email" name="email" placeholder="Email" className="rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-white placeholder:text-slate-400" />
             <input name="company" placeholder="Company" className="rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-white placeholder:text-slate-400" />
             <textarea required name="message" placeholder="Project / Specs" className="md:col-span-3 rounded-xl border border-white/15 bg-white/5 px-4 py-3 min-h-[120px] text-white placeholder:text-slate-400" />
-            <div className="md:col-span-3"><GlowButton><Mail className="h-5 w-5" /> Submit</GlowButton></div>
+            <div className="md:col-span-3"><GlowButton type="submit"><Mail className="h-5 w-5" /> Submit</GlowButton></div>
           </form>
         </GCard>
       </Section>
@@ -468,14 +728,16 @@ function Contact() {
 function useHashPath() {
   const getPath = () => {
     const raw = typeof window !== "undefined" ? window.location.hash : "";
-    const path = raw.replace(/^#/, "");
+    const path = (raw || "").replace(/^#/, "");
     return path || "/"; // default to root
   };
   const [path, setPath] = useState(getPath);
   useEffect(() => {
     const onHash = () => setPath(getPath());
-    window.addEventListener("hashchange", onHash);
-    return () => window.removeEventListener("hashchange", onHash);
+    if (typeof window !== "undefined") window.addEventListener("hashchange", onHash);
+    return () => {
+      if (typeof window !== "undefined") window.removeEventListener("hashchange", onHash);
+    };
   }, []);
   return path;
 }
@@ -497,9 +759,16 @@ function runSimpleTests() {
   const cases = [
     ["/corethread", "#/corethread"],
     ["downloads", "#/downloads"],
+    ["/", "#/"],
+    ["/contact ", "#/contact"],
     ["/brochures/artan-corethread.pdf", "/brochures/artan-corethread.pdf"],
     ["https://example.com", "https://example.com"],
     ["#/_directHash", "#/_directHash"],
+    ["   ", undefined],
+    [undefined, undefined],
+    ["mailto:hello@artanprotec.com", "mailto:hello@artanprotec.com"],
+    ["tel:+14704450578", "tel:+14704450578"],
+    ["#/downloads", "#/downloads"],
   ];
   let pass = 0;
   for (const [input, expected] of cases) {
@@ -512,6 +781,40 @@ function runSimpleTests() {
 
 if (typeof window !== "undefined" && import.meta && import.meta.env && import.meta.env.DEV) {
   try { runSimpleTests(); } catch (e) { console.warn("self-tests error", e); }
+}
+
+function DevDiagnostics() {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    try {
+      const h = typeof window !== "undefined" ? window.location.hash : "";
+      setShow((h || "").includes("debug"));
+    } catch {/* noop */}
+  }, []);
+  if (!show) return null;
+  const tests = [
+    { name: "All product paths start with /", pass: FAMILIES.every((f) => typeof f.path === "string" && f.path.startsWith("/") && !/\s/.test(f.path)) },
+    { name: "Downloads look like files or http(s)", pass: FAMILIES.every((f) => f.downloads.every((d) => isExternalOrFile(d.href))) },
+  ];
+  const failures = tests.filter((t) => !t.pass);
+  return (
+    <div className="fixed bottom-4 right-4 z-50 rounded-xl border border-white/15 bg-slate-900/90 px-4 py-3 text-xs text-slate-200 shadow-lg">
+      <div className="font-semibold mb-2">Dev Diagnostics</div>
+      <ul className="space-y-1">
+        {tests.map((t) => (
+          <li key={t.name} className={t.pass ? "text-emerald-300" : "text-rose-300"}>
+            {t.pass ? "✓" : "✗"} {t.name}
+          </li>
+        ))}
+      </ul>
+      {failures.length === 0 ? (
+        <div className="mt-2 text-emerald-400">All tests passed.</div>
+      ) : (
+        <div className="mt-2 text-rose-300">{failures.length} test(s) failed.</div>
+      )}
+      <div className="mt-2 text-slate-400">(Hide by removing #/debug from URL)</div>
+    </div>
+  );
 }
 
 // ------------------------------- App ------------------------------------
