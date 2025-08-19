@@ -487,6 +487,30 @@ const VariantTable = ({ rows }) => (
 );
 
 /************** Product pages **************/
+function ProductGallery({ id }){
+  // image placeholders: /images/<id>-hero.jpg, -detail-1.jpg, -detail-2.jpg
+  const images = [
+    `/images/${id}-hero.jpg`,
+    `/images/${id}-detail-1.jpg`,
+    `/images/${id}-detail-2.jpg`,
+  ];
+  return (
+    <div className="space-y-3">
+      <div className="aspect-[16/9] w-full overflow-hidden rounded-xl ring-1 ring-slate-200 bg-slate-100">
+        <img src={images[0]} alt={`${id} hero`} className="h-full w-full object-cover" onError={(e)=>e.currentTarget.style.display='none'} />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        {images.slice(1).map((src)=> (
+          <div key={src} className="aspect-[4/3] overflow-hidden rounded-xl ring-1 ring-slate-200 bg-slate-100">
+            <img src={src} alt={`${id} detail`} className="h-full w-full object-cover" onError={(e)=>e.currentTarget.style.display='none'} />
+          </div>
+        ))}
+      </div>
+      <p className="text-xs text-slate-500">Place your product renders/photos in <code>/public/images/</code> using the filenames above.</p>
+    </div>
+  );
+}
+
 function ProductPage({ fam }){
   const { isLight } = useTheme();
   return (
@@ -507,6 +531,9 @@ function ProductPage({ fam }){
                   <Icon.Download className="h-4 w-4"/> {d.label}
                 </a>
               ))}
+            </div>
+            <div className="mt-6">
+              <ProductGallery id={fam.id} />
             </div>
           </Card>
         </div>
@@ -565,6 +592,9 @@ function IndustriesIndex(){
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {items.map((it)=>(
             <Card key={it.slug}>
+              <div className="aspect-[16/9] w-full overflow-hidden rounded-xl ring-1 ring-slate-200 bg-slate-100 mb-3">
+                <img src={`/images/ind-${it.slug}.jpg`} alt={`${it.name} hero`} className="h-full w-full object-cover" onError={(e)=>e.currentTarget.style.display='none'} />
+              </div>
               <h3 className="text-lg font-semibold">{it.name}</h3>
               <p className="text-sm text-slate-600 mt-1">{it.copy}</p>
               <div className="mt-4"><Link to={`/industries/${it.slug}`} className="text-red-700 hover:underline">View →</Link></div>
@@ -576,30 +606,38 @@ function IndustriesIndex(){
   );
 }
 
-const IndustryPage = ({ name }) => (
-  <main>
-    <Section eyebrow="Industries" title={name} lead={`Applications, material choices and program options for ${name}.`}>
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <h4 className="font-semibold mb-2">Where {name} uses Artan materials</h4>
-          <ul className="list-disc pl-5 space-y-1 text-sm text-slate-700">
-            <li>Representative use case 1 for {name}</li>
-            <li>Representative use case 2 for {name}</li>
-            <li>Representative use case 3 for {name}</li>
-          </ul>
-        </Card>
-        <Card>
-          <h4 className="font-semibold mb-2">Recommended product families</h4>
-          <ul className="list-disc pl-5 space-y-1 text-sm text-slate-700">
-            <li><Link to="/products/corethread" className="text-red-700 hover:underline">CoreThread</Link> — seam integrity at temp</li>
-            <li><Link to="/products/armorweave" className="text-red-700 hover:underline">ArmorWeave</Link> — FR shells/liners/barriers</li>
-            <li><Link to="/products/armorshield" className="text-red-700 hover:underline">ArmorShield</Link> — pilot PPE assemblies</li>
-          </ul>
-        </Card>
-      </div>
-    </Section>
-  </main>
-);
+const toSlug = (s) => s.toLowerCase().replace(/ & /g,'').replace(/\s+/g,'');
+
+const IndustryPage = ({ name }) => {
+  const slug = toSlug(name);
+  return (
+    <main>
+      <Section eyebrow="Industries" title={name} lead={`Applications, material choices and program options for ${name}.`}>
+        <div className="grid gap-6 md:grid-cols-2">
+          <Card>
+            <div className="aspect-[16/9] w-full overflow-hidden rounded-xl ring-1 ring-slate-200 bg-slate-100 mb-3">
+              <img src={`/images/ind-${slug}.jpg`} alt={`${name} hero`} className="h-full w-full object-cover" onError={(e)=>e.currentTarget.style.display='none'} />
+            </div>
+            <h4 className="font-semibold mb-2">Where {name} uses Artan materials</h4>
+            <ul className="list-disc pl-5 space-y-1 text-sm text-slate-700">
+              <li>Representative use case 1 for {name}</li>
+              <li>Representative use case 2 for {name}</li>
+              <li>Representative use case 3 for {name}</li>
+            </ul>
+          </Card>
+          <Card>
+            <h4 className="font-semibold mb-2">Recommended product families</h4>
+            <ul className="list-disc pl-5 space-y-1 text-sm text-slate-700">
+              <li><Link to="/products/corethread" className="text-red-700 hover:underline">CoreThread</Link> — seam integrity at temp</li>
+              <li><Link to="/products/armorweave" className="text-red-700 hover:underline">ArmorWeave</Link> — FR shells/liners/barriers</li>
+              <li><Link to="/products/armorshield" className="text-red-700 hover:underline">ArmorShield</Link> — pilot PPE assemblies</li>
+            </ul>
+          </Card>
+        </div>
+      </Section>
+    </main>
+  );
+};
 
 function Downloads(){
   return (
@@ -676,6 +714,60 @@ const Ind = {
   PPE: () => <IndustryPage name="PPE" />, Filtration: () => <IndustryPage name="Filtration" />, Telecom: () => <IndustryPage name="Telecom" />, Utilities: () => <IndustryPage name="Utilities" />, OilGas: () => <IndustryPage name="Oil & Gas" />, FireServices: () => <IndustryPage name="Fire Services" />
 };
 
+/************** Footer **************/
+function Footer(){
+  const year = new Date().getFullYear();
+  return (
+    <footer className="mt-20 border-t border-slate-200 bg-white">
+      <Container className="py-12 grid grid-cols-2 md:grid-cols-4 gap-8">
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <img src="/artan-protec-logo-mark.png" alt="Artan mark" className="h-7 w-7" onError={(e)=>e.currentTarget.style.display='none'} />
+            <span className="font-semibold">Artan Protec</span>
+          </div>
+          <p className="text-sm text-slate-600">Advanced Protection | Engineered Performance</p>
+        </div>
+        <div>
+          <h5 className="text-xs font-semibold tracking-wider text-slate-500 uppercase mb-3">Products</h5>
+          <ul className="space-y-2 text-sm">
+            <li><Link to="/products" className="hover:underline">All Products</Link></li>
+            <li><Link to="/products/corethread" className="hover:underline">CoreThread</Link></li>
+            <li><Link to="/products/armorweave" className="hover:underline">ArmorWeave</Link></li>
+            <li><Link to="/products/armorshield" className="hover:underline">ArmorShield</Link></li>
+          </ul>
+        </div>
+        <div>
+          <h5 className="text-xs font-semibold tracking-wider text-slate-500 uppercase mb-3">Industries</h5>
+          <ul className="space-y-2 text-sm">
+            <li><Link to="/industries" className="hover:underline">Overview</Link></li>
+            <li><Link to="/industries/ppe" className="hover:underline">PPE</Link></li>
+            <li><Link to="/industries/filtration" className="hover:underline">Filtration</Link></li>
+            <li><Link to="/industries/telecom" className="hover:underline">Telecom</Link></li>
+            <li><Link to="/industries/utilities" className="hover:underline">Utilities</Link></li>
+            <li><Link to="/industries/oilgas" className="hover:underline">Oil & Gas</Link></li>
+            <li><Link to="/industries/fireservices" className="hover:underline">Fire Services</Link></li>
+          </ul>
+        </div>
+        <div>
+          <h5 className="text-xs font-semibold tracking-wider text-slate-500 uppercase mb-3">Company</h5>
+          <ul className="space-y-2 text-sm">
+            <li><Link to="/" className="hover:underline">Home</Link></li>
+            <li><Link to="/about" className="hover:underline">About</Link></li>
+            <li><Link to="/downloads" className="hover:underline">Downloads</Link></li>
+            <li><Link to="/contact" className="hover:underline">Contact</Link></li>
+          </ul>
+        </div>
+      </Container>
+      <div className="border-t border-slate-200">
+        <Container className="py-4 text-xs text-slate-500 flex items-center justify-between">
+          <span>© {year} Artan Protec. All rights reserved.</span>
+          <span>Made for performance‑critical applications.</span>
+        </Container>
+      </div>
+    </footer>
+  );
+}
+
 /************** Router **************/
 function AppRoutes(){
   return (
@@ -710,6 +802,7 @@ export default function App(){
         <Navbar/>
         <div className="pt-16">{/* spacer for fixed navbar */}
           <AppRoutes/>
+          <Footer/>
         </div>
       </Router>
     </ThemeCtx.Provider>
