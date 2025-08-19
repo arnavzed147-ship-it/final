@@ -19,9 +19,9 @@ import {
 } from "lucide-react";
 
 /**
- * Artan Protech — Single‑file React site (TailwindCSS + Framer Motion)
+ * Artan Protec — Single‑file React site (TailwindCSS + Framer Motion)
  * ----------------------------------------------------------------------
- * Brand: Artan Protech only — no mentions of other brands.
+ * Brand: Artan Protec only — no mentions of other brands.
  * Colors: Red / Black / White theme.
  * Navbar: Home, Products, Industries, About, Contact.
  * Animations: Scroll‑reveal + subtle hero parallax.
@@ -196,7 +196,7 @@ function Header({
           <div className="flex items-center gap-3">
             {/* Logo */}
             {LOGO_SRC ? (
-              <img src={LOGO_SRC} alt="Artan Protech" className="w-9 h-9 rounded" />
+              <img src={LOGO_SRC} alt="Artan Protec" className="w-9 h-9 rounded" />
             ) : (
               <div className="w-9 h-9 rounded bg-black text-white grid place-items-center font-bold">
                 A
@@ -204,7 +204,7 @@ function Header({
             )}
             <div className="leading-tight">
               <div className="font-extrabold tracking-tight text-red-700">
-                Artan Protech
+                Artan Protec
               </div>
               <div className="text-xs text-black">
                 Advanced Protection | Engineered Performance
@@ -445,7 +445,7 @@ function Home({ onExplore, goProducts, goAbout, goIndustries }) {
             Engineered Performance.
           </h1>
           <p className="mt-4 text-neutral-700 max-w-xl">
-            Artan Protech builds high‑performance materials for demanding
+            Artan Protec builds high‑performance materials for demanding
             environments — from aramid yarns & threads and PPE fabrics to
             ballistic UHMWPE UD sheets. Trusted by OEMs and end‑users across
             mobility, infrastructure & energy, telecom, and defense.
@@ -569,7 +569,7 @@ function Home({ onExplore, goProducts, goAbout, goIndustries }) {
                   onClick={goAbout}
                   className="inline-flex items-center gap-2 text-red-700 hover:underline cursor-pointer"
                 >
-                  Learn more about Artan Protech
+                  Learn more about Artan Protec
                   <ChevronRight className="w-4 h-4" />
                 </a>
               </div>
@@ -814,9 +814,9 @@ function IndustryDetail({ keyId, onBack }) {
 function About() {
   return (
     <section className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <SectionHeader title="About Artan Protech" subtitle="Company" />
+      <SectionHeader title="About Artan Protec" subtitle="Company" />
       <p className="text-neutral-700 leading-relaxed">
-        Artan Protech designs and delivers high‑performance materials for harsh
+        Artan Protec designs and delivers high‑performance materials for harsh
         environments. Our portfolio spans aramid yarns & threads, PPE fabrics,
         and UHMWPE UD sheets for ballistic applications. We combine precise
         engineering with reliable execution to help OEMs, EPCs, and end‑users
@@ -895,7 +895,7 @@ function Footer({ onNavigate }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="grid md:grid-cols-4 gap-8">
           <div>
-            <div className="font-extrabold tracking-tight">Artan Protech</div>
+            <div className="font-extrabold tracking-tight">Artan Protec</div>
             <div className="text-xs text-neutral-500">
               Advanced Protection | Engineered Performance
             </div>
@@ -949,7 +949,7 @@ function Footer({ onNavigate }) {
 
         <div className="mt-8 pt-6 border-t border-red-200 text-xs text-neutral-500 flex flex-wrap items-center justify-between gap-2">
           <div>
-            © {new Date().getFullYear()} Artan Protech. All rights reserved.
+            © {new Date().getFullYear()} Artan Protec. All rights reserved.
           </div>
           <div className="flex items-center gap-4">
             <a href="#" onClick={(e) => e.preventDefault()} className="hover:text-neutral-900">
