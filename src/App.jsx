@@ -1,630 +1,587 @@
-import React, { useEffect, useMemo, useState, useCallback, createContext, useContext } from "react";
-import { BrowserRouter as Router, Routes, Route, Link, useLocation } from "react-router-dom";
-// Do NOT import './index.css' here; keep Tailwind in src/main.jsx to avoid build errors.
+import React, { useEffect, useState } from "react";
+import {
+  ShieldCheck,
+  Flame,
+  Layers3,
+  Mail,
+  Phone,
+  Download,
+  ChevronRight,
+  CheckCircle2,
+  FileDown,
+  ChevronDown,
+} from "lucide-react";
 
-/***********************************
- * Artan Protec — Red/White/Black (Light theme + optional Dark toggle)
- * - BrowserRouter (Netlify SPA needs /public/_redirects → "/*  /index.html  200")
- * - Desktop: Navbar dropdowns (Products, Industries)
- * - Mobile: Compact slide-down menu with nested submenus
- * - Hero background video (webm/mp4 + poster)
- * - All content: Home, Products x3, Industries index + 6 pages, About, Downloads, Contact
- * - Product/industry imagery hooks via /public/images/*.jpg (graceful onError hiding)
- ***********************************/
+/**
+ * Artan Protec — Red / White / Black Theme (Multipage, URL‑safe, no router deps)
+ * --------------------------------------------------------------------------------
+ * What’s included based on your requests:
+ *  - **Red/White/Black** visual system (clean light UI, bold red accents)
+ *  - **Hero background video** with **WebM + H.264 MP4** sources and poster
+ *  - **Sticky Home sub‑nav** with **scrollspy highlighting**
+ *  - **Animated section reveals** + **staggered card reveals**
+ *  - Safe, dependency‑free **hash router** and **URL guard** (prevents Invalid URL)
+ *
+ * Requirements:
+ *  - Tailwind imported once in src/main.jsx (import './index.css')
+ *  - Public assets: /artan-protec-logo.png, /artan-protec-logo-mark.png
+ *  - Video assets in /public: /hero.webm and /hero.mp4 (+ optional /hero-poster.jpg)
+ *  - PDFs in /brochures: artan-corethread.pdf, artan-armorweave.pdf, artan-ppe.pdf
+ */
 
-/************** Small utilities **************/
-const cx = (...a) => a.filter(Boolean).join(" ");
-const ThemeCtx = createContext({ isLight: true, toggle: () => {} });
-const useTheme = () => useContext(ThemeCtx);
+// ----------------------------- UI Primitives ------------------------------
+const Container = ({ className = "", children }) => (
+  <div className={`mx-auto w-full max-w-7xl px-6 ${className}`}>{children}</div>
+);
 
-/************** Local SVG Icons (no extra deps) **************/
-const Icon = {
-  Thread: (p) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...p}>
-      <path d="M4 7c4 0 4-3 8-3s4 3 8 3" />
-      <path d="M4 12c4 0 4-3 8-3s4 3 8 3" />
-      <path d="M4 17c4 0 4-3 8-3s4 3 8 3" />
-      <path d="M4 21h16" />
-    </svg>
-  ),
-  Fabric: (p) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...p}>
-      <path d="M3 7l9-4 9 4-9 4-9-4z" />
-      <path d="M3 12l9 4 9-4" />
-      <path d="M3 17l9 4 9-4" />
-    </svg>
-  ),
-  Shield: (p) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...p}>
-      <path d="M12 3l7 3v6c0 5-3.5 8-7 9-3.5-1-7-4-7-9V6l7-3z" />
-      <path d="M9 12l2 2 4-4" />
-    </svg>
-  ),
-  Menu: (p) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...p}>
-      <path d="M3 6h18M3 12h18M3 18h18" />
-    </svg>
-  ),
-  Close: (p) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...p}>
-      <path d="M6 6l12 12M6 18L18 6" />
-    </svg>
-  ),
-  Download: (p) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...p}>
-      <path d="M12 3v12" /><path d="M7 10l5 5 5-5" /><path d="M5 21h14" />
-    </svg>
-  ),
-  Mail: (p) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...p}>
-      <path d="M4 6h16v12H4z" /><path d="M22 6l-10 7L2 6" />
-    </svg>
-  ),
-  Phone: (p) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...p}>
-      <path d="M22 16.92V21a2 2 0 0 1-2.18 2 19.86 19.86 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.86 19.86 0 0 1 2 4.18 2 2 0 0 1 4 2h4.09a2 2 0 0 1 2 1.72c.12.9.3 1.78.54 2.65a2 2 0 0 1-.45 2.11L9 9a16 16 0 0 0 6 6l.52-1.18a2 2 0 0 1 2.11-.45c.87.24 1.75.42 2.65.54A2 2 0 0 1 22 16.92z" />
-    </svg>
-  ),
+const Reveal = ({ children, delayMs = 0 }) => {
+  const [vis, setVis] = useState(false);
+  const ref = React.useRef(null);
+  useEffect(() => {
+    if (!ref.current) return;
+    const obs = new IntersectionObserver(
+      (ents) => ents.forEach((e) => e.isIntersecting && setVis(true)),
+      { threshold: 0.15 }
+    );
+    obs.observe(ref.current);
+    return () => obs.disconnect();
+  }, []);
+  return (
+    <div
+      ref={ref}
+      style={{ transitionDelay: `${delayMs}ms` }}
+      className={`transition-all duration-700 ease-out ${vis ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+    >
+      {children}
+    </div>
+  );
 };
 
-/************** Shared atoms **************/
-const Container = ({ className = "", children }) => (
-  <div className={cx("mx-auto w-full max-w-7xl px-6", className)}>{children}</div>
+const Section = ({ id, eyebrow, title, lead, children }) => (
+  <section id={id} className="py-20 sm:py-24">
+    <Container>
+      <Reveal>
+        <div className="mb-8">
+          {eyebrow && (
+            <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">{eyebrow}</p>
+          )}
+          <h2 className="mt-2 text-2xl sm:text-4xl font-semibold text-slate-900">{title}</h2>
+          {lead && <p className="mt-3 max-w-3xl text-slate-600">{lead}</p>}
+        </div>
+        {children}
+      </Reveal>
+    </Container>
+  </section>
 );
 
-const Pill = ({ children, className = "" }) => (
-  <span className={cx("rounded-full border px-3 py-1 text-xs", className)}>{children}</span>
-);
+// ----------------------------- URL Helpers --------------------------------
+function isExternalOrFile(href = "") {
+  return (
+    /^https?:\/\//i.test(href) ||
+    href.startsWith("mailto:") ||
+    href.startsWith("tel:") ||
+    href.startsWith("data:") ||
+    href.startsWith("blob:") ||
+    /\.(pdf|zip|docx?|xlsx?)($|\?)/i.test(href) ||
+    href.startsWith("/brochures/")
+  );
+}
 
-const Card = ({ children, className = "" }) => (
-  <div className={cx("relative rounded-2xl p-[1px] bg-gradient-to-br from-red-200/70 via-slate-200/40 to-red-100/70 shadow-sm", className)}>
+function toHref(href) {
+  if (!href || typeof href !== "string") return undefined;
+  const trimmed = href.trim();
+  if (!trimmed) return undefined;
+  if (isExternalOrFile(trimmed)) return trimmed;
+  if (trimmed.startsWith("#")) return trimmed;
+  if (trimmed.startsWith("/")) return `#${trimmed}`;
+  return `#/${trimmed.replace(/^#?\/?/, "")}`;
+}
+
+const GlowButton = ({ href, children, variant = "primary", newTab = false, type = "button" }) => {
+  const base =
+    "relative inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition focus:outline-none";
+  const variants = {
+    primary:
+      "text-white bg-gradient-to-r from-red-600 to-red-700 shadow hover:shadow-[0_10px_30px_-10px_rgba(220,38,38,0.6)]",
+    ghost: "text-slate-900 border border-slate-300 bg-white hover:bg-slate-50",
+  };
+  const content = <span className={`${base} ${variants[variant]}`}>{children}</span>;
+
+  const safeHref = toHref(href);
+  if (!safeHref) return <button type={type}>{content}</button>;
+
+  const isExternal = isExternalOrFile(safeHref) && /^https?:/i.test(safeHref);
+  const target = newTab || isExternal ? "_blank" : undefined;
+  const rel = target ? "noreferrer" : undefined;
+
+  return (
+    <a href={safeHref} className="no-underline" target={target} rel={rel}>
+      {content}
+    </a>
+  );
+};
+
+const GCard = ({ children, className = "" }) => (
+  <div className={`relative rounded-2xl p-[1px] bg-gradient-to-br from-red-200/70 via-slate-200/40 to-red-100/70 shadow-sm ${className}`}>
     <div className="rounded-2xl bg-white ring-1 ring-slate-200 p-6">{children}</div>
   </div>
 );
 
-const Button = ({ children, className = "", href, onClick, newTab, type = "button", variant = "solid" }) => {
-  const base = "inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition";
-  const v =
-    variant === "solid"
-      ? "text-white bg-gradient-to-r from-red-600 to-red-700 hover:shadow-[0_10px_30px_-10px_rgba(220,38,38,0.6)]"
-      : "text-slate-900 border border-slate-300 bg-white hover:bg-slate-50";
-  if (href) {
-    return (
-      <a href={href} target={newTab ? "_blank" : undefined} rel={newTab ? "noreferrer" : undefined} className={cx(base, v, className)}>
-        {children}
-      </a>
-    );
-  }
+const Pill = ({ children }) => (
+  <span className="rounded-full bg-red-100 text-red-800 border border-red-200 px-3 py-1 text-xs">{children}</span>
+);
+
+const Feature = ({ icon: Icon, title, children, delay = 0 }) => (
+  <Reveal delayMs={delay}>
+    <div className="flex items-start gap-4">
+      <div className="mt-1 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-red-500 to-black text-white ring-1 ring-red-300/40">
+        <Icon className="h-5 w-5" />
+      </div>
+      <div>
+        <h4 className="text-slate-900 font-semibold">{title}</h4>
+        <p className="text-slate-600 text-sm mt-1">{children}</p>
+      </div>
+    </div>
+  </Reveal>
+);
+
+// --------------------------- Product Data -------------------------------
+const FAMILIES = [
+  {
+    id: "corethread",
+    path: "/corethread",
+    name: "CoreThread — Aramid Yarns & Threads",
+    icon: Layers3,
+    summary:
+      "Industrial aramid yarns & sewing threads engineered for heat/FR, strength and durability in PPE seams, hot‑end filtration and thermal assemblies.",
+    details: [
+      "Constructions: 2–8 ply staple‑based; tex/dtex/denier per application (e.g., 750 ±25 denier 4‑ply).",
+      "Performance: breaking strength ≥60 N (spec‑dependent); elongation 3.0–4.4%; high modulus.",
+      "Chemistry: meta‑aramid & para‑aramid blends; dope‑dyed meta‑aramid colors available.",
+      "Finish: sewing lubricant, anti‑wick, soft‑hand; cone winding & doubling in‑house.",
+    ],
+    variants: [
+      { name: "CT‑750/4P", spec: "750 ±25 denier, 4‑ply", suited: "PPE seams, filtration sewing" },
+      { name: "CT‑1000/3P", spec: "~1000 denier class, 3‑ply", suited: "Heavy protective gear, gloves" },
+      { name: "CT‑MetaDyed", spec: "Dope‑dyed meta‑aramid colors", suited: "Brand‑matched FR apparel" },
+    ],
+    downloads: [{ label: "CoreThread Datasheet (PDF)", href: "/brochures/artan-corethread.pdf" }],
+  },
+  {
+    id: "armorweave",
+    path: "/armorweave",
+    name: "ArmorWeave — FRR & PPE Fabrics",
+    icon: Flame,
+    summary:
+      "FR fabrics for coveralls, jackets, gloves, hoods and thermal liners. Targeted GSM and weaves for shell, liner and barrier layers.",
+    details: [
+      "Fiber systems: meta/para‑aramid; optional antistatic grids; ripstop/twill constructions.",
+      "Weights: typical 150–280 GSM for apparel; higher GSM for barrier layers.",
+      "Finishes: comfort & moisture options; shade ranges aligned with industry norms.",
+      "Compliance: application‑specific testing pathways and documentation guidance.",
+    ],
+    variants: [
+      { name: "AW‑Shell180", spec: "180 GSM ripstop shell", suited: "FR coveralls & jackets" },
+      { name: "AW‑Liner150", spec: "150 GSM liner", suited: "Comfort liner for PPE" },
+      { name: "AW‑Barrier260", spec: "260 GSM barrier", suited: "Thermal barrier / added protection" },
+    ],
+    downloads: [{ label: "ArmorWeave Catalog (PDF)", href: "/brochures/artan-armorweave.pdf" }],
+  },
+  {
+    id: "ppe",
+    path: "/armorshield",
+    name: "ArmorShield — Industrial PPE & Components",
+    icon: ShieldCheck,
+    summary:
+      "Select PPE gear and components leveraging our aramid inputs to accelerate pilots and early adoption.",
+    details: [
+      "Cut/heat resistant gloves & sleeves; FR hoods and jackets with aramid seams.",
+      "Partnered manufacturing with QA; traceability & batch documentation available.",
+      "Customization: logos, shade matching, size grading per program needs.",
+    ],
+    variants: [
+      { name: "AS‑GlovePro", spec: "Cut/heat‑resistant glove", suited: "Foundry, welding, hot‑process handling" },
+      { name: "AS‑HoodFR", spec: "FR hood with aramid seams", suited: "Fire safety & industrial" },
+      { name: "AS‑JacketAR", spec: "Arc‑rated jacket (program)", suited: "Utilities & electrical maintenance" },
+    ],
+    downloads: [{ label: "PPE Program Overview (PDF)", href: "/brochures/artan-ppe.pdf" }],
+  },
+];
+
+// -------------------------- Helpers/Widgets -----------------------------
+const Accordion = ({ items, allowMultiple = true }) => {
+  const [open, setOpen] = useState({});
+  const toggle = (i) => setOpen((p) => (allowMultiple ? { ...p, [i]: !p[i] } : { [i]: !p[i] }));
   return (
-    <button type={type} onClick={onClick} className={cx(base, v, className)}>
-      {children}
-    </button>
+    <div className="space-y-3">
+      {items.map((it, i) => {
+        const isOpen = !!open[i];
+        return (
+          <div key={i} className="rounded-xl bg-white ring-1 ring-slate-200 overflow-hidden">
+            <button
+              onClick={() => toggle(i)}
+              className="w-full flex items-center justify-between gap-4 px-4 py-3 text-left text-slate-800 hover:bg-slate-50 transition"
+            >
+              <span className="font-medium">{it.title}</span>
+              <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+            </button>
+            {isOpen && <div className="px-4 pb-4 text-slate-600 text-sm">{it.content}</div>}
+          </div>
+        );
+      })}
+    </div>
   );
 };
 
-/************** Navbar with desktop dropdowns + mobile menu + theme toggle **************/
+const VariantTable = ({ rows }) => (
+  <div className="overflow-x-auto">
+    <table className="w-full text-sm">
+      <thead className="text-left text-slate-600 bg-slate-50">
+        <tr className="border-b border-slate-200">
+          <th className="py-2 pr-4">Variant</th>
+          <th className="py-2 pr-4">Spec</th>
+          <th className="py-2">Suited For</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((r) => (
+          <tr key={r.name} className="border-b border-slate-200 last:border-0">
+            <td className="py-2 pr-4 text-slate-900 font-medium">{r.name}</td>
+            <td className="py-2 pr-4 text-slate-700">{r.spec}</td>
+            <td className="py-2 text-slate-700">{r.suited}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+);
+
+// ------------------------------ Layout ----------------------------------
 function Navbar() {
-  const { isLight, toggle } = useTheme();
-  const location = useLocation();
-  const [openProd, setOpenProd] = useState(false);
-  const [openInd, setOpenInd] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
-
-  const isActive = useCallback(
-    (path) => location.pathname === path || (path !== "/" && location.pathname.startsWith(path)),
-    [location.pathname]
-  );
-
-  const linkBase = "relative group px-2 py-1";
-  const underline = (active) =>
-    cx("absolute left-0 -bottom-1 h-0.5 bg-red-600 transition-all duration-300", active ? "w-full" : "w-0 group-hover:w-full");
-
-  const MenuGroup = ({ label, active, onEnter, onLeave, children }) => (
-    <div className="relative" onMouseEnter={onEnter} onMouseLeave={onLeave}>
-      <span className={linkBase}>
-        <span className={cx("cursor-default", active && "font-bold text-red-600")}>{label}</span>
-        <span className={underline(active)} />
-      </span>
-      {children}
-    </div>
-  );
-
-  const Drop = ({ items, onClick }) => (
-    <div className="absolute mt-2 w-72 rounded-xl bg-white ring-1 ring-slate-200 shadow-xl p-2">
-      {items.map((it) => (
-        <Link
-          key={it.to}
-          to={it.to}
-          onClick={onClick}
-          className="flex items-center gap-3 rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-50"
-        >
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 text-red-700 ring-1 ring-red-100">
-            {it.icon}
-          </span>
-          <span>
-            <div className="font-medium">{it.title}</div>
-            {it.sub && <div className="text-xs text-slate-500">{it.sub}</div>}
-          </span>
-        </Link>
-      ))}
-    </div>
-  );
-
-  const productItems = [
-    { to: "/products/corethread", title: "CoreThread", sub: "Aramid yarns & sewing threads", icon: <Icon.Thread className="h-4 w-4" /> },
-    { to: "/products/armorweave", title: "ArmorWeave", sub: "FR fabrics for PPE shells/liners", icon: <Icon.Fabric className="h-4 w-4" /> },
-    { to: "/products/armorshield", title: "ArmorShield", sub: "PPE gear & components", icon: <Icon.Shield className="h-4 w-4" /> },
-  ];
-
-  const industryItems = [
-    { to: "/industries/ppe", title: "PPE", sub: "Apparel, gloves, hoods, jackets", icon: <Icon.Shield className="h-4 w-4" /> },
-    { to: "/industries/filtration", title: "Filtration", sub: "Hot-end/industrial filtration", icon: <Icon.Fabric className="h-4 w-4" /> },
-    { to: "/industries/telecom", title: "Telecom", sub: "Thermal barriers & safety gear", icon: <Icon.Thread className="h-4 w-4" /> },
-    { to: "/industries/utilities", title: "Utilities", sub: "Arc-rated programs", icon: <Icon.Shield className="h-4 w-4" /> },
-    { to: "/industries/oilgas", title: "Oil & Gas", sub: "FR apparel & barriers", icon: <Icon.Fabric className="h-4 w-4" /> },
-    { to: "/industries/fireservices", title: "Fire Services", sub: "Jackets, hoods, liners", icon: <Icon.Shield className="h-4 w-4" /> },
-  ];
-
+  const [open, setOpen] = useState(false);
   return (
-    <header
-      className={cx(
-        "fixed top-0 inset-x-0 z-50 border-b",
-        isLight ? "bg-white/80 border-slate-200 backdrop-blur" : "bg-black/80 border-white/10 backdrop-blur"
-      )}
-    >
+    <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/70">
       <Container className="flex h-16 items-center justify-between">
-        {/* Brand */}
-        <Link to="/" className="flex items-center gap-3">
+        <a href="#/" className="flex items-center gap-3">
           <img
             src="/artan-protec-logo.png"
             alt="Artan Protec"
             className="h-8 w-auto"
             onError={(e) => (e.currentTarget.style.display = "none")}
           />
-        
           <div className="leading-tight">
-            <p className={cx("font-semibold", isLight ? "text-slate-900" : "text-white")}>Artan Protec</p>
-            <p className={cx("text-[11px]", isLight ? "text-slate-500" : "text-slate-400")}>
-              Advanced Protection | Engineered Performance
-            </p>
+            <p className="font-semibold text-slate-900">Artan Protec</p>
+            <p className="text-[11px] text-slate-500">Advanced Protection | Engineered Performance</p>
           </div>
-        </Link>
-
-        {/* Desktop nav */}
+        </a>
         <nav className="hidden md:flex items-center gap-6 text-sm">
-          <Link to="/" className={linkBase}>
-            <span className={cx(isActive("/") && "font-bold text-red-600", isLight ? "text-slate-700" : "text-slate-200")}>Home</span>
-            <span className={underline(isActive("/"))} />
-          </Link>
-
-          <MenuGroup
-            label={<span className={cx(isLight ? "text-slate-700" : "text-slate-200")}>Products</span>}
-            active={isActive("/products")}
-            onEnter={() => setOpenProd(true)}
-            onLeave={() => setOpenProd(false)}
-          >
-            {openProd && <Drop items={productItems} onClick={() => setOpenProd(false)} />}
-          </MenuGroup>
-
-          <MenuGroup
-            label={<span className={cx(isLight ? "text-slate-700" : "text-slate-200")}>Industries</span>}
-            active={isActive("/industries")}
-            onEnter={() => setOpenInd(true)}
-            onLeave={() => setOpenInd(false)}
-          >
-            {openInd && <Drop items={industryItems} onClick={() => setOpenInd(false)} />}
-          </MenuGroup>
-
-          <Link to="/downloads" className={linkBase}>
-            <span className={cx(isActive("/downloads") && "font-bold text-red-600", isLight ? "text-slate-700" : "text-slate-200")}>
-              Downloads
-            </span>
-            <span className={underline(isActive("/downloads"))} />
-          </Link>
-          <Link to="/about" className={linkBase}>
-            <span className={cx(isActive("/about") && "font-bold text-red-600", isLight ? "text-slate-700" : "text-slate-200")}>About</span>
-            <span className={underline(isActive("/about"))} />
-          </Link>
-          <Link to="/contact" className={linkBase}>
-            <span className={cx(isActive("/contact") && "font-bold text-red-600", isLight ? "text-slate-700" : "text-slate-200")}>
-              Contact
-            </span>
-            <span className={underline(isActive("/contact"))} />
-          </Link>
-        </nav>
-
-        {/* Right controls */}
-        <div className="flex items-center gap-3">
-          <button
-            aria-label="Toggle theme"
-            onClick={toggle}
-            className={cx(
-              "rounded-lg px-3 py-2 text-xs border",
-              isLight ? "border-slate-300 text-slate-700 hover:bg-slate-50" : "border-white/15 text-white hover:bg-white/10"
+          <div className="relative">
+            <button onClick={() => setOpen((v) => !v)} className="text-slate-700 hover:text-slate-900 inline-flex items-center gap-1">
+              Catalog
+              <ChevronDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
+            </button>
+            {open && (
+              <div onMouseLeave={() => setOpen(false)} className="absolute right-0 mt-2 w-64 rounded-xl bg-white ring-1 ring-slate-200 shadow-xl p-2">
+                {FAMILIES.map((f, i) => (
+                  <a key={f.id} href={toHref(f.path)} className="block rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-50" onClick={() => setOpen(false)}>
+                    {f.name}
+                  </a>
+                ))}
+              </div>
             )}
-          >
-            {isLight ? "Light" : "Dark"}
-          </button>
-          <button
-            className={cx("md:hidden rounded-lg p-2 border", isLight ? "border-slate-300 text-slate-700" : "border-white/15 text-white")}
-            onClick={() => setMobileOpen((v) => !v)}
-            aria-label="Open menu"
-          >
-            {mobileOpen ? <Icon.Close className="h-5 w-5" /> : <Icon.Menu className="h-5 w-5" />}
-          </button>
-        </div>
+          </div>
+          <a href="#/why" className="text-slate-700 hover:text-slate-900">Why Artan</a>
+          <a href="#/downloads" className="text-slate-700 hover:text-slate-900">Downloads</a>
+          <GlowButton href="/contact">
+            <Mail className="h-4 w-4" /> Contact
+          </GlowButton>
+        </nav>
       </Container>
-
-      {/* Mobile panel */}
-      {mobileOpen && (
-        <div className={cx("md:hidden border-t", isLight ? "bg-white border-slate-200" : "bg-black border-white/10")}>
-          <Container className="py-3 space-y-2">
-            <Link to="/" onClick={() => setMobileOpen(false)} className={cx("block px-3 py-2 rounded-lg", isLight ? "hover:bg-slate-50" : "hover:bg-white/10")}>Home</Link>
-            <details className={cx("px-3 py-2 rounded-lg", isLight ? "bg-white" : "bg-white/5")}> 
-              <summary className="cursor-pointer">Products</summary>
-              <div className="mt-2 ml-3 space-y-2">
-                <Link to="/products/corethread" onClick={() => setMobileOpen(false)} className={cx("block px-3 py-2 rounded-lg", isLight ? "hover:bg-slate-50" : "hover:bg-white/10")}>CoreThread</Link>
-                <Link to="/products/armorweave" onClick={() => setMobileOpen(false)} className={cx("block px-3 py-2 rounded-lg", isLight ? "hover:bg-slate-50" : "hover:bg-white/10")}>ArmorWeave</Link>
-                <Link to="/products/armorshield" onClick={() => setMobileOpen(false)} className={cx("block px-3 py-2 rounded-lg", isLight ? "hover:bg-slate-50" : "hover:bg-white/10")}>ArmorShield</Link>
-              </div>
-            </details>
-            <details className={cx("px-3 py-2 rounded-lg", isLight ? "bg-white" : "bg-white/5")}> 
-              <summary className="cursor-pointer">Industries</summary>
-              <div className="mt-2 ml-3 space-y-2">
-                <Link to="/industries/ppe" onClick={() => setMobileOpen(false)} className={cx("block px-3 py-2 rounded-lg", isLight ? "hover:bg-slate-50" : "hover:bg-white/10")}>PPE</Link>
-                <Link to="/industries/filtration" onClick={() => setMobileOpen(false)} className={cx("block px-3 py-2 rounded-lg", isLight ? "hover:bg-slate-50" : "hover:bg-white/10")}>Filtration</Link>
-                <Link to="/industries/telecom" onClick={() => setMobileOpen(false)} className={cx("block px-3 py-2 rounded-lg", isLight ? "hover:bg-slate-50" : "hover:bg-white/10")}>Telecom</Link>
-                <Link to="/industries/utilities" onClick={() => setMobileOpen(false)} className={cx("block px-3 py-2 rounded-lg", isLight ? "hover:bg-slate-50" : "hover:bg-white/10")}>Utilities</Link>
-                <Link to="/industries/oilgas" onClick={() => setMobileOpen(false)} className={cx("block px-3 py-2 rounded-lg", isLight ? "hover:bg-slate-50" : "hover:bg-white/10")}>Oil & Gas</Link>
-                <Link to="/industries/fireservices" onClick={() => setMobileOpen(false)} className={cx("block px-3 py-2 rounded-lg", isLight ? "hover:bg-slate-50" : "hover:bg-white/10")}>Fire Services</Link>
-              </div>
-            </details>
-            <Link to="/downloads" onClick={() => setMobileOpen(false)} className={cx("block px-3 py-2 rounded-lg", isLight ? "hover:bg-slate-50" : "hover:bg-white/10")}>Downloads</Link>
-            <Link to="/about" onClick={() => setMobileOpen(false)} className={cx("block px-3 py-2 rounded-lg", isLight ? "hover:bg-slate-50" : "hover:bg-white/10")}>About</Link>
-            <Link to="/contact" onClick={() => setMobileOpen(false)} className={cx("block px-3 py-2 rounded-lg", isLight ? "hover:bg-slate-50" : "hover:bg-white/10")}>Contact</Link>
-          </Container>
-        </div>
-      )}
     </header>
   );
 }
 
-/************** Section **************/
-const Section = ({ id, eyebrow, title, lead, children, className = "" }) => {
-  const { isLight } = useTheme();
+function SiteFrame({ children }) {
   return (
-    <section id={id} className={cx("py-16", className)}>
-      <Container>
-        <div className="mb-8">
-          {eyebrow && (
-            <p className={cx("text-[11px] uppercase tracking-[0.2em]", isLight ? "text-slate-500" : "text-slate-400")}>{eyebrow}</p>
-          )}
-          <h2 className={cx("mt-2 text-2xl sm:text-4xl font-semibold", isLight ? "text-slate-900" : "text-white")}>{title}</h2>
-          {lead && <p className={cx("mt-3 max-w-3xl", isLight ? "text-slate-600" : "text-slate-300")}>{lead}</p>}
-        </div>
-        {children}
-      </Container>
-    </section>
+    <div className="min-h-screen bg-gradient-to-b from-white via-slate-50 to-red-50/20 text-slate-900">
+      {/* Soft red radial accents */}
+      <div className="pointer-events-none fixed inset-0 -z-10">
+        <div className="absolute inset-0 bg-[radial-gradient(900px_500px_at_15%_-5%,rgba(239,68,68,0.12),transparent),radial-gradient(900px_500px_at_85%_0%,rgba(15,23,42,0.08),transparent)]" />
+      </div>
+      <Navbar />
+      {children}
+      <DevDiagnostics />
+      <Footer />
+    </div>
   );
-};
+}
 
-/************** Home **************/
+function Footer() {
+  return (
+    <footer className="border-t border-slate-200 bg-white py-10 mt-20">
+      <Container className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        <div className="flex items-center gap-3">
+          <img
+            src="/artan-protec-logo-mark.png"
+            alt="Artan mark"
+            className="h-8 w-8"
+            onError={(e) => (e.currentTarget.style.display = "none")}
+          />
+          <div>
+            <p className="font-semibold text-slate-900">Artan Protec</p>
+            <p className="text-xs text-slate-500">Advanced Protection | Engineered Performance</p>
+          </div>
+        </div>
+        <p className="text-xs text-slate-500">© {new Date().getFullYear()} Artan Protec. All rights reserved.</p>
+      </Container>
+    </footer>
+  );
+}
+
+// --------------------------- Pages --------------------------------------
 function Home() {
-  const { isLight } = useTheme();
   const cases = [
-    { title: "Firefighter Jackets", bullets: ["Outer shell with ripstop ArmorWeave", "CoreThread seams maintain integrity under heat", "Optional moisture/comfort finishes"] },
-    { title: "Industrial Gloves", bullets: ["Para-aramid blends for cut/heat resistance", "Cone-wound CoreThread for stitch consistency", "Program sizing and private labeling"] },
-    { title: "Thermal Barriers", bullets: ["Targeted GSM fabrics for insulation", "Liner options for comfort and moisture", "Batch traceability for audits"] },
+    {
+      title: "Firefighter Jackets",
+      bullets: [
+        "Outer shell with ripstop ArmorWeave",
+        "CoreThread seams maintain integrity under heat",
+        "Optional moisture/comfort finishes",
+      ],
+    },
+    {
+      title: "Industrial Gloves",
+      bullets: [
+        "Para-aramid blends for cut/heat resistance",
+        "Cone‑wound CoreThread for consistent stitch",
+        "Programmatic sizing & private labeling",
+      ],
+    },
+    {
+      title: "Thermal Barriers",
+      bullets: [
+        "Targeted GSM fabrics for insulation",
+        "Liner options for comfort & moisture",
+        "Batch traceability for audits",
+      ],
+    },
   ];
   const [caseIdx, setCaseIdx] = useState(0);
 
+  const links = [
+    { id: "about", label: "About" },
+    { id: "catalog", label: "Catalog" },
+    { id: "why", label: "Why Artan" },
+    { id: "industries", label: "Industries" },
+    { id: "standards", label: "Standards" },
+    { id: "use-cases", label: "Use Cases" },
+    { id: "tech", label: "Tech" },
+    { id: "get-started", label: "Get started" },
+  ];
+
+  // Scrollspy state
+  const [activeId, setActiveId] = useState("about");
+  useEffect(() => {
+    const ids = links.map((l) => l.id);
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) setActiveId(entry.target.id);
+        });
+      },
+      { rootMargin: "-20% 0px -70% 0px", threshold: [0.1, 0.25, 0.6] }
+    );
+    ids.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) observer.observe(el);
+    });
+    return () => observer.disconnect();
+  }, []);
+
+  const SubNav = () => (
+    <div className="sticky top-16 z-30 border-b border-slate-200 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/70">
+      <Container className="overflow-x-auto">
+        <div className="flex gap-4 py-3 text-sm">
+          {links.map((l) => (
+            <a
+              key={l.id}
+              href={`#/${l.id}`}
+              onClick={(e) => {
+                e.preventDefault();
+                const el = document.getElementById(l.id);
+                if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+              className={`${activeId === l.id ? "text-red-700 border-b-2 border-red-600" : "text-slate-700 hover:text-slate-900"} whitespace-nowrap pb-1`}
+            >
+              {l.label}
+            </a>
+          ))}
+        </div>
+      </Container>
+    </div>
+  );
+
   return (
-    <div className={cx(isLight ? "bg-gradient-to-b from-white via-slate-50 to-red-50/20 text-slate-900" : "bg-slate-950 text-white")}>
-      {/* HERO with background video */}
-      <section className="relative overflow-hidden">
+    <>
+      {/* HERO with background video (WebM + H.264) */}
+      <section id="home" className="relative overflow-hidden">
         <div className="absolute inset-0 -z-10">
-          <video className="h-full w-full object-cover" autoPlay muted loop playsInline preload="metadata" poster="/hero-poster.jpg">
+          <video
+            className="h-full w-full object-cover"
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            poster="/hero-poster.jpg"
+          >
             <source src="/hero.webm" type="video/webm" />
             <source src="/hero.mp4" type="video/mp4" />
           </video>
-          {/* Simplified overlay to avoid parser issues */}
-          <div className={cx("absolute inset-0", isLight ? "bg-gradient-to-b from-white/70 via-white/70 to-white/85" : "bg-black/40")} />
+          <div className="absolute inset-0 bg-gradient-to-b from-white/70 via-white/70 to-white/85" />
         </div>
-        <Container className="pt-24 pb-24">
-          <div className="max-w-3xl">
-            <div
-              className={cx(
-                "inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.2em]",
-                isLight ? "border border-red-200 bg-red-50/60 text-red-700" : "border border-red-500/30 bg-red-900/20 text-red-200"
-              )}
-            >
-              Aramid Materials • FRR Fabrics • Industrial PPE
-            </div>
-            <h1 className="mt-4 text-4xl sm:text-6xl font-extrabold leading-tight">Advanced Protection. Engineered Performance.</h1>
-            <p className={cx("mt-5 text-lg", isLight ? "text-slate-700" : "text-slate-300")}>
-              Aramid yarns, threads, and protective solutions for demanding environments — specified for reliability, safety, and durability across PPE, filtration, utilities, telecom, and fire services.
-            </p>
-            <div className="mt-8 flex flex-wrap items-center gap-3">
-              {/* Products dropdown CTA */}
-              <div className="relative group">
-                <Button>Explore Products</Button>
-                <div className="absolute hidden group-hover:block bg-white text-black mt-2 rounded-xl shadow-xl ring-1 ring-slate-200 w-72 p-2 z-10">
-                  <Link to="/products/corethread" className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-slate-50">
-                    <Icon.Thread className="h-4 w-4" /> CoreThread
-                  </Link>
-                  <Link to="/products/armorweave" className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-slate-50">
-                    <Icon.Fabric className="h-4 w-4" /> ArmorWeave
-                  </Link>
-                  <Link to="/products/armorshield" className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-slate-50">
-                    <Icon.Shield className="h-4 w-4" /> ArmorShield
-                  </Link>
-                </div>
+        <Container className="pt-16 pb-24">
+          <Reveal>
+            <div className="max-w-3xl">
+              <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50/60 px-3 py-1 text-[11px] uppercase tracking-[0.2em] text-red-700">
+                Aramid Materials • FRR Fabrics • Industrial PPE
               </div>
-              <Button href="/downloads" variant="outline">
-                <Icon.Download className="h-4 w-4" /> Tech Sheets
-              </Button>
+              <h1 className="mt-4 text-4xl sm:text-6xl font-extrabold leading-tight">
+                Advanced Protection. Engineered Performance.
+              </h1>
+              <p className="mt-5 text-lg text-slate-700">
+                High‑strength, heat‑resistant yarns & threads (CoreThread), FR fabrics (ArmorWeave), and select PPE assemblies (ArmorShield) for mission‑critical environments.
+              </p>
+              <div className="mt-8 flex flex-wrap items-center gap-3">
+                <GlowButton href="/corethread">
+                  <ChevronRight className="h-5 w-5" /> Explore Catalog
+                </GlowButton>
+                <GlowButton href="/downloads" variant="ghost">
+                  <FileDown className="h-5 w-5" /> Tech Sheets
+                </GlowButton>
+              </div>
+              <div className="mt-6 flex flex-wrap gap-2">
+                <Pill>Spec‑driven sourcing</Pill>
+                <Pill>Low‑CAPEX phase‑in</Pill>
+                <Pill>Export‑ready</Pill>
+              </div>
             </div>
-            <div className="mt-6 flex flex-wrap gap-2">
-              <Pill className={cx(isLight ? "border-red-200 text-red-700 bg-red-50" : "border-red-500/30 text-red-200 bg-red-900/20")}>Spec-driven sourcing</Pill>
-              <Pill className={cx(isLight ? "border-red-200 text-red-700 bg-red-50" : "border-red-500/30 text-red-200 bg-red-900/20")}>Low-CAPEX phase-in</Pill>
-              <Pill className={cx(isLight ? "border-red-200 text-red-700 bg-red-50" : "border-red-500/30 text-red-200 bg-red-900/20")}>Export-ready</Pill>
-            </div>
-          </div>
+          </Reveal>
         </Container>
       </section>
 
+      {/* STICKY SUB-NAV */}
+      <SubNav />
+
       {/* ABOUT */}
-      <Section
-        id="about"
-        eyebrow="About"
-        title="Artan Protec"
-        lead="A specialized brand focused on aramid inputs and FR protective solutions — built for reliability, documentation, and scale."
-      >
+      <Section id="about" eyebrow="About" title="Artan Protec" lead="A specialized brand focused on aramid inputs and FR protective solutions — built for reliability, documentation, and scale.">
         <div className="grid gap-6 md:grid-cols-2">
-          <Card>
-            <p className={cx("text-sm", isLight ? "text-slate-600" : "text-slate-200")}>
-              Artan Protec delivers high‑performance aramid‑based products engineered for industries where safety, reliability, and durability are critical. We convert technical fibers into performance components — yarns and threads for high‑temperature seams, FR fabrics for shells, liners and barriers, and selected PPE assemblies to accelerate pilots. Our process emphasizes application fit, quality control, documentation, and consistent supply.
+          <GCard>
+            <p className="text-slate-600 text-sm">
+              We convert technical fibers into performance components: yarns & threads for high‑temperature seams, FR fabrics for shells/liners/barriers, and selected PPE assemblies to accelerate pilots. Our process emphasizes application fit, quality control, and consistent supply.
             </p>
-            <ul className={cx("mt-4 grid grid-cols-2 gap-3 text-sm", isLight ? "text-slate-700" : "text-slate-200")}>
-              <li className="flex items-center gap-2">✔ Meta/para-aramid expertise</li>
-              <li className="flex items-center gap-2">✔ Batch documentation</li>
-              <li className="flex items-center gap-2">✔ Shade and logo customization</li>
-              <li className="flex items-center gap-2">✔ Export logistics ready</li>
+            <ul className="mt-4 grid grid-cols-2 gap-3 text-sm text-slate-700">
+              <li className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-red-600"/> Meta/para‑aramid expertise</li>
+              <li className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-red-600"/> Batch documentation</li>
+              <li className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-red-600"/> Shade & logo customization</li>
+              <li className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-red-600"/> Export logistics ready</li>
             </ul>
-          </Card>
-          <Card>
-            <h4 className={cx("font-semibold mb-3", isLight ? "text-slate-900" : "text-white")}>Photography / Renders</h4>
-            <div className="grid grid-cols-2 gap-3">
-              <picture>
-                <img
-                  src="/images/product-corethread.jpg"
-                  alt="CoreThread sample"
-                  className="h-28 w-full object-cover rounded-lg ring-1 ring-slate-200"
-                  onError={(e) => (e.currentTarget.style.display = "none")}
-                />
-              </picture>
-              <picture>
-                <img
-                  src="/images/product-armorweave.jpg"
-                  alt="ArmorWeave sample"
-                  className="h-28 w-full object-cover rounded-lg ring-1 ring-slate-200"
-                  onError={(e) => (e.currentTarget.style.display = "none")}
-                />
-              </picture>
-              <picture>
-                <img
-                  src="/images/product-armorshield.jpg"
-                  alt="ArmorShield sample"
-                  className="h-28 w-full object-cover rounded-lg ring-1 ring-slate-200"
-                  onError={(e) => (e.currentTarget.style.display = "none")}
-                />
-              </picture>
-              <picture>
-                <img
-                  src="/images/product-lab.jpg"
-                  alt="Lab or testing"
-                  className="h-28 w-full object-cover rounded-lg ring-1 ring-slate-200"
-                  onError={(e) => (e.currentTarget.style.display = "none")}
-                />
-              </picture>
+          </GCard>
+          <GCard>
+            <h4 className="text-slate-900 font-semibold mb-2">At a glance</h4>
+            <div className="grid grid-cols-2 gap-4 text-sm text-slate-700">
+              <div>
+                <p className="text-slate-500">Product families</p>
+                <p className="text-slate-900 font-semibold">3</p>
+              </div>
+              <div>
+                <p className="text-slate-500">Target GSM range</p>
+                <p className="text-slate-900 font-semibold">150–280 (apparel)</p>
+              </div>
+              <div>
+                <p className="text-slate-500">Thread constructions</p>
+                <p className="text-slate-900 font-semibold">2–8 ply staple</p>
+              </div>
+              <div>
+                <p className="text-slate-500">Customization</p>
+                <p className="text-slate-900 font-semibold">Logos & shades</p>
+              </div>
             </div>
-            <p className={cx("mt-2 text-xs", isLight ? "text-slate-500" : "text-slate-400")}>
-              Drop your own images into /public/images/ with the same names to replace these placeholders.
-            </p>
-          </Card>
+          </GCard>
         </div>
       </Section>
 
       {/* PRODUCT LINES OVERVIEW */}
-      <Section id="products" eyebrow="Products" title="Product Lines" lead="Open a product line to view detailed specs, variants, and downloads.">
+      <Section id="catalog" eyebrow="Catalog" title="Product Lines" lead="Open a product line to view detailed specs, variants, and downloads.">
         <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-          <Card className="hover:shadow-[0_20px_60px_-20px_rgba(239,68,68,0.25)] transition">
-            <div className="flex items-start gap-4">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-red-600 to-black text-white ring-1 ring-red-300/40">
-                <Icon.Thread className="h-5 w-5" />
-              </span>
-              <div>
-                <h3 className={cx("text-lg font-semibold", isLight ? "text-slate-900" : "text-white")}>
-                  CoreThread — Aramid Yarns & Threads
-                </h3>
-                <p className={cx("text-sm mt-1", isLight ? "text-slate-600" : "text-slate-300")}>
-                  Industrial aramid yarns and sewing threads engineered for heat/FR, strength and durability in PPE seams, hot-end filtration and thermal assemblies.
-                </p>
-              </div>
-            </div>
-            <div className="mt-4">
-              <Link to="/products/corethread" className="text-red-700 hover:underline">
-                Learn more →
-              </Link>
-            </div>
-          </Card>
-          <Card className="hover:shadow-[0_20px_60px_-20px_rgba(239,68,68,0.25)] transition">
-            <div className="flex items-start gap-4">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-red-600 to-black text-white ring-1 ring-red-300/40">
-                <Icon.Fabric className="h-5 w-5" />
-              </span>
-              <div>
-                <h3 className={cx("text-lg font-semibold", isLight ? "text-slate-900" : "text-white")}>
-                  ArmorWeave — FRR & PPE Fabrics
-                </h3>
-                <p className={cx("text-sm mt-1", isLight ? "text-slate-600" : "text-slate-300")}>FR fabrics for coveralls, jackets, gloves, hoods and thermal liners. Targeted GSM and weaves for shell, liner and barrier layers.</p>
-              </div>
-            </div>
-            <div className="mt-4">
-              <Link to="/products/armorweave" className="text-red-700 hover:underline">
-                Learn more →
-              </Link>
-            </div>
-          </Card>
-          <Card className="hover:shadow-[0_20px_60px_-20px_rgba(239,68,68,0.25)] transition">
-            <div className="flex items-start gap-4">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-red-600 to-black text-white ring-1 ring-red-300/40">
-                <Icon.Shield className="h-5 w-5" />
-              </span>
-              <div>
-                <h3 className={cx("text-lg font-semibold", isLight ? "text-slate-900" : "text-white")}>
-                  ArmorShield — Industrial PPE & Components
-                </h3>
-                <p className={cx("text-sm mt-1", isLight ? "text-slate-600" : "text-slate-300")}>Select PPE gear and components leveraging our aramid inputs to accelerate pilots and early adoption.</p>
-              </div>
-            </div>
-            <div className="mt-4">
-              <Link to="/products/armorshield" className="text-red-700 hover:underline">
-                Learn more →
-              </Link>
-            </div>
-          </Card>
+          {FAMILIES.map((fam, i) => (
+            <Reveal key={fam.id} delayMs={i * 90}>
+              <GCard className="hover:shadow-[0_20px_60px_-20px_rgba(239,68,68,0.25)] transition">
+                <div className="flex items-start gap-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-red-600 to-black text-white ring-1 ring-red-300/40">
+                    <fam.icon className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-slate-900">{fam.name}</h3>
+                    <p className="text-slate-600 text-sm mt-1">{fam.summary}</p>
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <GlowButton href={fam.path} variant="ghost">Learn more</GlowButton>
+                </div>
+              </GCard>
+            </Reveal>
+          ))}
         </div>
       </Section>
 
       {/* DIFFERENTIATORS */}
       <Section id="why" eyebrow="Why Artan" title="What sets us apart">
         <div className="grid gap-6 md:grid-cols-3">
-          <Card>
-            <div className="flex items-start gap-4">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-red-600 to-black text-white ring-1 ring-red-300/40">
-                <Icon.Shield className="h-5 w-5" />
-              </span>
-              <div>
-                <h4 className={cx("font-semibold", isLight ? "text-slate-900" : "text-white")}>Proven performance</h4>
-                <p className={cx("text-sm mt-1", isLight ? "text-slate-600" : "text-slate-300")}>
-                  Materials field‑tested in PPE, utilities, oil & gas, and fire services programs.
-                </p>
-              </div>
-            </div>
-          </Card>
-          <Card>
-            <div className="flex items-start gap-4">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-red-600 to-black text-white ring-1 ring-red-300/40">
-                <Icon.Thread className="h-5 w-5" />
-              </span>
-              <div>
-                <h4 className={cx("font-semibold", isLight ? "text-slate-900" : "text-white")}>Engineered reliability</h4>
-                <p className={cx("text-sm mt-1", isLight ? "text-slate-600" : "text-slate-300")}>
-                  From fiber selection to thread constructions and fabric weaves tuned to spec.
-                </p>
-              </div>
-            </div>
-          </Card>
-          <Card>
-            <div className="flex items-start gap-4">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-red-600 to-black text-white ring-1 ring-red-300/40">
-                <Icon.Fabric className="h-5 w-5" />
-              </span>
-              <div>
-                <h4 className={cx("font-semibold", isLight ? "text-slate-900" : "text-white")}>Advanced R&D</h4>
-                <p className={cx("text-sm mt-1", isLight ? "text-slate-600" : "text-slate-300")}>
-                  Application‑aligned testing and documentation paths to meet standards.
-                </p>
-              </div>
-            </div>
-          </Card>
-          <Card>
-            <div className="flex items-start gap-4">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-red-600 to-black text-white ring-1 ring-red-300/40">
-                <Icon.Shield className="h-5 w-5" />
-              </span>
-              <div>
-                <h4 className={cx("font-semibold", isLight ? "text-slate-900" : "text-white")}>Global reach</h4>
-                <p className={cx("text-sm mt-1", isLight ? "text-slate-600" : "text-slate-300")}>
-                  Export‑ready programs and partner network for fast scale‑up.
-                </p>
-              </div>
-            </div>
-          </Card>
-          <Card>
-            <div className="flex items-start gap-4">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-red-600 to-black text-white ring-1 ring-red-300/40">
-                <Icon.Thread className="h-5 w-5" />
-              </span>
-              <div>
-                <h4 className={cx("font-semibold", isLight ? "text-slate-900" : "text-white")}>Sustainable manufacturing</h4>
-                <p className={cx("text-sm mt-1", isLight ? "text-slate-600" : "text-slate-300")}>
-                  Process controls focused on consistency, waste reduction, and yield.
-                </p>
-              </div>
-            </div>
-          </Card>
-          <Card>
-            <div className="flex items-start gap-4">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-red-600 to-black text-white ring-1 ring-red-300/40">
-                <Icon.Fabric className="h-5 w-5" />
-              </span>
-              <div>
-                <h4 className={cx("font-semibold", isLight ? "text-slate-900" : "text-white")}>Custom solutions</h4>
-                <p className={cx("text-sm mt-1", isLight ? "text-slate-600" : "text-slate-300")}>
-                  Logos, shades, and specs tailored to program requirements.
-                </p>
-              </div>
-            </div>
-          </Card>
+          <Feature icon={Layers3} title="Materials mastery" delay={0}>
+            Meta‑ & para‑aramid systems tuned from fiber to seam.
+          </Feature>
+          <Feature icon={CheckCircle2} title="Quality & compliance" delay={90}>
+            Documentation, batch traceability, and process control.
+          </Feature>
+          <Feature icon={ShieldCheck} title="Program flexibility" delay={180}>
+            Shade/logo customization and scalable partner network.
+          </Feature>
         </div>
       </Section>
 
-      {/* INDUSTRIES quick tiles */}
+      {/* INDUSTRIES */}
       <Section id="industries" eyebrow="Industries" title="Where we fit" lead="Solutions aligned to sector requirements and safety expectations.">
-        <div className="grid gap-4 md:grid-cols-6 text-sm">
-          {[
-            "PPE",
-            "Filtration",
-            "Telecom",
-            "Utilities",
-            "Oil & Gas",
-            "Fire Services",
-          ].map((name) => (
-            <Link
-              key={name}
-              to={`/industries/${name.toLowerCase().replace(/ & /g, "").replace(/\s+/g, "")}`}
-              className={cx(
-                "text-center rounded-xl px-4 py-3 ring-1",
-                isLight ? "ring-slate-200 bg-white hover:bg-slate-50 text-slate-700" : "ring-white/10 bg-white/5 hover:bg-white/10 text-slate-200"
-              )}
-            >
-              {name}
-            </Link>
+        <div className="grid gap-4 md:grid-cols-5 text-sm">
+          {["Defense", "Industrial PPE", "Fire Services", "Utilities & Electrical", "Oil & Gas"].map((name, i) => (
+            <Reveal key={name} delayMs={i * 70}>
+              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-700 text-center hover:bg-slate-50">
+                {name}
+              </div>
+            </Reveal>
           ))}
         </div>
       </Section>
 
-      {/* STANDARDS */}
-      <Section id="standards" eyebrow="Standards" title="Certifications and standards">
-        <Card>
-          <div className={cx("grid grid-cols-2 md:grid-cols-4 gap-4 text-sm", isLight ? "text-slate-700" : "text-slate-300")}>
-            <div className="rounded-lg bg-white px-3 py-2 text-center ring-1 ring-slate-200">ISO (process)</div>
-            <div className="rounded-lg bg-white px-3 py-2 text-center ring-1 ring-slate-200">ASTM / NFPA (application-specific)</div>
-            <div className="rounded-lg bg-white px-3 py-2 text-center ring-1 ring-slate-200">BIS (where applicable)</div>
-            <div className="rounded-lg bg-white px-3 py-2 text-center ring-1 ring-slate-200">Documentation support</div>
+      {/* CERTIFICATIONS */}
+      <Section id="standards" eyebrow="Standards" title="Certifications & standards">
+        <GCard>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-slate-700">
+            <Reveal delayMs={0}><div className="rounded-lg bg-white px-3 py-2 text-center ring-1 ring-slate-200">ISO (process)</div></Reveal>
+            <Reveal delayMs={80}><div className="rounded-lg bg-white px-3 py-2 text-center ring-1 ring-slate-200">ASTM / NFPA (app‑specific)</div></Reveal>
+            <Reveal delayMs={160}><div className="rounded-lg bg-white px-3 py-2 text-center ring-1 ring-slate-200">BIS (where applicable)</div></Reveal>
+            <Reveal delayMs={240}><div className="rounded-lg bg-white px-3 py-2 text-center ring-1 ring-slate-200">Documentation support</div></Reveal>
           </div>
-        </Card>
+        </GCard>
       </Section>
 
-      {/* USE CASES */}
+      {/* CASE STUDIES CAROUSEL (simple) */}
       <Section id="use-cases" eyebrow="Use cases" title="Applications in the field">
-        <Card>
+        <GCard>
           <div className="flex items-start justify-between gap-6">
             <div>
-              <h4 className={cx("font-semibold", isLight ? "text-slate-900" : "text-white")}>{cases[caseIdx].title}</h4>
-              <ul className={cx("mt-2 list-disc pl-5 text-sm", isLight ? "text-slate-700" : "text-slate-200")}>
+              <h4 className="text-slate-900 font-semibold">{cases[caseIdx].title}</h4>
+              <ul className="mt-2 list-disc pl-5 text-slate-700 text-sm">
                 {cases[caseIdx].bullets.map((b) => (
                   <li key={b}>{b}</li>
                 ))}
@@ -636,17 +593,17 @@ function Home() {
                   key={i}
                   onClick={() => setCaseIdx(i)}
                   aria-label={`Show case ${i + 1}`}
-                  className={cx("h-2.5 w-2.5 rounded-full", i === caseIdx ? "bg-red-600" : "bg-red-200")}
+                  className={`h-2.5 w-2.5 rounded-full ${i === caseIdx ? "bg-red-600" : "bg-red-200"}`}
                 />
               ))}
             </div>
           </div>
-        </Card>
+        </GCard>
       </Section>
 
-      {/* TECH DIAGRAM */}
-      <Section id="tech" eyebrow="Tech" title="Cross-section: protective layer stack" lead="Hover layers to see composition and function.">
-        <Card>
+      {/* INTERACTIVE TECH DIAGRAM (red/neutral palette) */}
+      <Section id="tech" eyebrow="Tech" title="Cross‑section: protective layer stack" lead="Hover layers to reveal composition & function.">
+        <GCard>
           <div className="grid md:grid-cols-2 gap-6 items-center">
             <svg viewBox="0 0 320 260" className="w-full h-auto">
               <defs>
@@ -670,7 +627,7 @@ function Home() {
               </g>
               <g className="group">
                 <rect x="40" y="150" width="240" height="22" fill="url(#g2)" stroke="#6b7280" className="transition duration-200 group-hover:opacity-90" />
-                <text x="50" y="165" fill="#374151" fontSize="10">Liner: comfort and moisture options</text>
+                <text x="50" y="165" fill="#374151" fontSize="10">Liner: comfort & moisture options</text>
               </g>
               <g className="group">
                 <rect x="50" y="120" width="220" height="20" fill="url(#g3)" stroke="#f59e0b" className="transition duration-200 group-hover:opacity-90" />
@@ -681,640 +638,263 @@ function Home() {
                 <text x="70" y="103" fill="#111827" fontSize="10">Seams: CoreThread aramid sewing</text>
               </g>
             </svg>
-            <div className={cx("space-y-3 text-sm", isLight ? "text-slate-700" : "text-slate-200")}> 
-              <div className="flex items-start gap-3">
-                <div className="h-3 w-3 rounded-sm" style={{ background: "linear-gradient(90deg,#fecaca88,#ef444488)" }} />
-                <div>
-                  <p className={cx("font-medium", isLight ? "text-slate-900" : "text-white")}>ArmorWeave outer shell</p>
-                  <p className={cx(isLight ? "text-slate-500" : "text-slate-400")}>Ripstop or twill, shade options, abrasion resistance.</p>
+
+            <div>
+              <div className="space-y-3 text-sm text-slate-700">
+                <div className="flex items-start gap-3">
+                  <div className="h-3 w-3 rounded-sm" style={{ background: "linear-gradient(90deg,#fecaca88,#ef444488)" }} />
+                  <div>
+                    <p className="text-slate-900 font-medium">ArmorWeave outer shell</p>
+                    <p className="text-slate-500">Ripstop/twill, shade options, abrasion resistance.</p>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="h-3 w-3 rounded-sm" style={{ background: "linear-gradient(90deg,#e5e7eb88,#9ca3af88)" }} />
-                <div>
-                  <p className={cx("font-medium", isLight ? "text-slate-900" : "text-white")}>Comfort liner</p>
-                  <p className={cx(isLight ? "text-slate-500" : "text-slate-400")}>Moisture and comfort finishes for extended wear.</p>
+                <div className="flex items-start gap-3">
+                  <div className="h-3 w-3 rounded-sm" style={{ background: "linear-gradient(90deg,#e5e7eb88,#9ca3af88)" }} />
+                  <div>
+                    <p className="text-slate-900 font-medium">Comfort liner</p>
+                    <p className="text-slate-500">Moisture/comfort finishes for extended wear.</p>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="h-3 w-3 rounded-sm" style={{ background: "linear-gradient(90deg,#fde68a90,#f8717190)" }} />
-                <div>
-                  <p className={cx("font-medium", isLight ? "text-slate-900" : "text-white")}>Thermal/arc barrier</p>
-                  <p className={cx(isLight ? "text-slate-500" : "text-slate-400")}>Higher GSM or blends to meet protection targets.</p>
+                <div className="flex items-start gap-3">
+                  <div className="h-3 w-3 rounded-sm" style={{ background: "linear-gradient(90deg,#fde68a90,#f8717190)" }} />
+                  <div>
+                    <p className="text-slate-900 font-medium">Thermal/arc barrier</p>
+                    <p className="text-slate-500">Higher GSM or blends to meet protection targets.</p>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="h-3 w-3 rounded-sm bg-slate-800/40" />
-                <div>
-                  <p className={cx("font-medium", isLight ? "text-slate-900" : "text-white")}>CoreThread seams</p>
-                  <p className={cx(isLight ? "text-slate-500" : "text-slate-400")}>Aramid threads and constructions for seam integrity.</p>
+                <div className="flex items-start gap-3">
+                  <div className="h-3 w-3 rounded-sm bg-slate-800/40" />
+                  <div>
+                    <p className="text-slate-900 font-medium">CoreThread seams</p>
+                    <p className="text-slate-500">Aramid threads and constructions for seam integrity.</p>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </Card>
+        </GCard>
       </Section>
 
       {/* CTA */}
       <Section id="get-started" eyebrow="Get started" title="Spec a material or request a pilot">
         <div className="flex flex-wrap gap-3">
-          <Button href="/downloads" variant="outline">
-            <Icon.Download className="h-4 w-4" /> Download brochures
-          </Button>
-          <Button href="/contact">
-            <Icon.Mail className="h-4 w-4" /> Contact sales
-          </Button>
+          <GlowButton href="/downloads" variant="ghost"><Download className="h-4 w-4"/> Download brochures</GlowButton>
+          <GlowButton href="/contact"><Mail className="h-4 w-4"/> Contact sales</GlowButton>
         </div>
       </Section>
-    </div>
-  );
-}
-
-/************** Product data and tables **************/
-const tableCls = "w-full text-sm";
-const Th = ({ children }) => <th className="py-2 pr-4 text-left">{children}</th>;
-const Td = ({ children }) => <td className="py-2 pr-4 align-top">{children}</td>;
-const VariantTable = ({ rows }) => (
-  <div className="overflow-x-auto">
-    <table className={tableCls}>
-      <thead className="bg-slate-50 text-slate-600">
-        <tr className="border-b border-slate-200">
-          <Th>Variant</Th>
-          <Th>Spec</Th>
-          <Th>Suited For</Th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((r) => (
-          <tr key={r.name} className="border-b border-slate-200 last:border-0">
-            <Td>
-              <span className="font-medium text-slate-900">{r.name}</span>
-            </Td>
-            <Td className="text-slate-700">{r.spec}</Td>
-            <Td className="text-slate-700">{r.suited}</Td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-);
-
-function ProductGallery({ id }) {
-  const images = [
-    `/images/${id}-hero.jpg`,
-    `/images/${id}-detail-1.jpg`,
-    `/images/${id}-detail-2.jpg`,
-  ];
-  return (
-    <div className="space-y-3">
-      <div className="aspect-[16/9] w-full overflow-hidden rounded-xl ring-1 ring-slate-200 bg-slate-100">
-        <img src={images[0]} alt={`${id} hero`} className="h-full w-full object-cover" onError={(e) => (e.currentTarget.style.display = "none")} />
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        {images.slice(1).map((src) => (
-          <div key={src} className="aspect-[4/3] overflow-hidden rounded-xl ring-1 ring-slate-200 bg-slate-100">
-            <img src={src} alt={`${id} detail`} className="h-full w-full object-cover" onError={(e) => (e.currentTarget.style.display = "none")} />
-          </div>
-        ))}
-      </div>
-      <p className="text-xs text-slate-500">
-        Place your product renders or photos in <code>/public/images/</code> with the filenames above.
-      </p>
-    </div>
+    </>
   );
 }
 
 function ProductPage({ fam }) {
-  const { isLight } = useTheme();
   return (
-    <main className={cx(isLight ? "bg-white text-slate-900" : "bg-slate-950 text-white")}>
-      <Section eyebrow="Products" title={fam.name} lead={fam.summary}>
+    <>
+      <Section eyebrow="Catalog" title={fam.name} lead={fam.summary}>
         <div className="grid gap-6 md:grid-cols-3">
-          <Card className="md:col-span-2">
-            <h3 className={cx("font-semibold mb-2", isLight ? "text-slate-900" : "text-white")}>Key details</h3>
-            <ul className={cx("list-disc pl-5 space-y-1 text-sm", isLight ? "text-slate-700" : "text-slate-200")}>
+          <GCard className="md:col-span-2">
+            <h3 className="text-slate-900 font-semibold mb-3">Key details</h3>
+            <ul className="list-disc pl-5 space-y-1 text-slate-700 text-sm">
               {fam.details.map((d) => (
                 <li key={d}>{d}</li>
               ))}
             </ul>
-            <h3 className={cx("font-semibold mt-6 mb-2", isLight ? "text-slate-900" : "text-white")}>Available variants</h3>
+            <h3 className="text-slate-900 font-semibold mt-6 mb-3">Available variants</h3>
             <VariantTable rows={fam.variants} />
-          </Card>
-          <Card>
-            <h3 className={cx("font-semibold mb-3", isLight ? "text-slate-900" : "text-white")}>Downloads</h3>
+          </GCard>
+          <GCard>
+            <h3 className="text-slate-900 font-semibold mb-3">Downloads</h3>
             <div className="flex flex-wrap gap-2">
               {fam.downloads.map((d) => (
-                <a
-                  key={d.href}
-                  href={d.href}
-                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-slate-800 hover:bg-slate-50"
-                >
-                  <Icon.Download className="h-4 w-4" /> {d.label}
+                <a key={d.href} href={d.href} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-slate-800 hover:bg-slate-50">
+                  <Download className="h-4 w-4" /> {d.label}
                 </a>
               ))}
             </div>
-            <div className="mt-6">
-              <ProductGallery id={fam.id} />
-            </div>
-          </Card>
+          </GCard>
         </div>
       </Section>
-    </main>
+    </>
   );
 }
 
-const FAMILIES = [
-  {
-    id: "corethread",
-    path: "/products/corethread",
-    name: "CoreThread — Aramid Yarns & Threads",
-    summary:
-      "Industrial aramid yarns and sewing threads engineered for heat/FR, strength and durability in PPE seams, hot-end filtration and thermal assemblies.",
-    details: [
-      "Constructions: 2–8 ply staple-based; tex/dtex/denier per application (e.g., 750 ±25 denier 4-ply).",
-      "Performance: breaking strength ≥60 N (spec-dependent); elongation 3.0–4.4%; high modulus.",
-      "Chemistry: meta-aramid and para-aramid blends; dope-dyed meta-aramid colors available.",
-      "Finish: sewing lubricant, anti-wick, soft-hand; cone winding and doubling in-house.",
-    ],
-    variants: [
-      { name: "CT-750/4P", spec: "750 ±25 denier, 4-ply", suited: "PPE seams, filtration sewing" },
-      { name: "CT-1000/3P", spec: "~1000 denier class, 3-ply", suited: "Heavy protective gear, gloves" },
-      { name: "CT-MetaDyed", spec: "Dope-dyed meta-aramid colors", suited: "Brand-matched FR apparel" },
-    ],
-    downloads: [{ label: "CoreThread Datasheet (PDF)", href: "/brochures/artan-corethread.pdf" }],
-  },
-  {
-    id: "armorweave",
-    path: "/products/armorweave",
-    name: "ArmorWeave — FRR & PPE Fabrics",
-    summary:
-      "FR fabrics for coveralls, jackets, gloves, hoods and thermal liners. Targeted GSM and weaves for shell, liner and barrier layers.",
-    details: [
-      "Fiber systems: meta/para-aramid; optional antistatic grids; ripstop/twill constructions.",
-      "Weights: typical 150–280 GSM for apparel; higher GSM for barrier layers.",
-      "Finishes: comfort and moisture options; shade ranges aligned with industry norms.",
-      "Compliance: application-specific testing pathways and documentation guidance.",
-    ],
-    variants: [
-      { name: "AW-Shell180", spec: "180 GSM ripstop shell", suited: "FR coveralls and jackets" },
-      { name: "AW-Liner150", spec: "150 GSM liner", suited: "Comfort liner for PPE" },
-      { name: "AW-Barrier260", spec: "260 GSM barrier", suited: "Thermal barrier / added protection" },
-    ],
-    downloads: [{ label: "ArmorWeave Catalog (PDF)", href: "/brochures/artan-armorweave.pdf" }],
-  },
-  {
-    id: "armorshield",
-    path: "/products/armorshield",
-    name: "ArmorShield — Industrial PPE & Components",
-    summary: "Select PPE gear and components leveraging our aramid inputs to accelerate pilots and early adoption.",
-    details: [
-      "Cut/heat resistant gloves and sleeves; FR hoods and jackets with aramid seams.",
-      "Partnered manufacturing with QA; traceability and batch documentation available.",
-      "Customization: logos, shade matching, size grading per program needs.",
-    ],
-    variants: [
-      { name: "AS-GlovePro", spec: "Cut/heat-resistant glove", suited: "Foundry, welding, hot-process handling" },
-      { name: "AS-HoodFR", spec: "FR hood with aramid seams", suited: "Fire safety and industrial" },
-      { name: "AS-JacketAR", spec: "Arc-rated jacket (program)", suited: "Utilities and electrical maintenance" },
-    ],
-    downloads: [{ label: "PPE Program Overview (PDF)", href: "/brochures/artan-ppe.pdf" }],
-  },
-];
-
-/************** Non-product pages **************/
-function ProductsIndex() {
+function Why() {
   return (
-    <main>
-      <Section eyebrow="Products" title="All product lines" lead="Choose a family to view specs, variants, and downloads.">
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-          {FAMILIES.map((f) => (
-            <Card key={f.id}>
-              <div className="flex items-start gap-4">
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-red-600 to-black text-white ring-1 ring-red-300/40">
-                  {f.id === "corethread" && <Icon.Thread className="h-5 w-5" />}
-                  {f.id === "armorweave" && <Icon.Fabric className="h-5 w-5" />}
-                  {f.id === "armorshield" && <Icon.Shield className="h-5 w-5" />}
-                </span>
-                <div>
-                  <h3 className="text-lg font-semibold">{f.name}</h3>
-                  <p className="text-sm text-slate-600 mt-1">{f.summary}</p>
-                </div>
-              </div>
-              <div className="mt-4">
-                <Link to={f.path} className="text-red-700 hover:underline">
-                  Open →
-                </Link>
-              </div>
-            </Card>
-          ))}
-        </div>
-      </Section>
-    </main>
+    <Section eyebrow="Why Artan" title="Built for demanding environments" lead="From seam integrity to arc and flame resistance, our inputs and assemblies are tuned to application realities.">
+      <div className="grid gap-6 md:grid-cols-3">
+        <GCard>
+          <Feature icon={Layers3} title="Materials mastery">
+            Meta‑ & para‑aramid expertise — converting fibers to threads, fabrics, and PPE components.
+          </Feature>
+        </GCard>
+        <GCard>
+          <Feature icon={CheckCircle2} title="Quality & compliance">
+            Process controls and documentation aligned with FR/PPE expectations; traceability by batch.
+          </Feature>
+        </GCard>
+        <GCard>
+          <Feature icon={ShieldCheck} title="Scale‑ready network">
+            Partner spinning/weaving/finishing; in‑house doubling & cone winding to reduce lead times.
+          </Feature>
+        </GCard>
+      </div>
+    </Section>
   );
 }
-
-function IndustriesIndex() {
-  const items = [
-    { slug: "ppe", name: "PPE", copy: "Apparel, gloves, hoods, jackets" },
-    { slug: "filtration", name: "Filtration", copy: "Hot-end/industrial filtration" },
-    { slug: "telecom", name: "Telecom", copy: "Thermal barriers and safety gear" },
-    { slug: "utilities", name: "Utilities", copy: "Arc-rated programs" },
-    { slug: "oilgas", name: "Oil & Gas", copy: "FR apparel and barriers" },
-    { slug: "fireservices", name: "Fire Services", copy: "Jackets, hoods, liners" },
-  ];
-  return (
-    <main>
-      <Section eyebrow="Industries" title="Sectors we support" lead="Spec-driven solutions aligned to safety and performance expectations.">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {items.map((it) => (
-            <Card key={it.slug}>
-              <div className="aspect-[16/9] w-full overflow-hidden rounded-xl ring-1 ring-slate-200 bg-slate-100 mb-3">
-                <img
-                  src={`/images/ind-${it.slug}.jpg`}
-                  alt={`${it.name} hero`}
-                  className="h-full w-full object-cover"
-                  onError={(e) => (e.currentTarget.style.display = "none")}
-                />
-              </div>
-              <h3 className="text-lg font-semibold">{it.name}</h3>
-              <p className="text-sm text-slate-600 mt-1">{it.copy}</p>
-              <div className="mt-4">
-                <Link to={`/industries/${it.slug}`} className="text-red-700 hover:underline">
-                  View →
-                </Link>
-              </div>
-            </Card>
-          ))}
-        </div>
-      </Section>
-    </main>
-  );
-}
-
-const toSlug = (s) => s.toLowerCase().replace(/ & /g, "").replace(/\s+/g, "");
-
-const IndustryPage = ({ name }) => {
-  const slug = toSlug(name);
-  return (
-    <main>
-      <Section eyebrow="Industries" title={name} lead={`Applications, material choices and program options for ${name}.`}>
-        <div className="grid gap-6 md:grid-cols-2">
-          <Card>
-            <div className="aspect-[16/9] w-full overflow-hidden rounded-xl ring-1 ring-slate-200 bg-slate-100 mb-3">
-              <img
-                src={`/images/ind-${slug}.jpg`}
-                alt={`${name} hero`}
-                className="h-full w-full object-cover"
-                onError={(e) => (e.currentTarget.style.display = "none")}
-              />
-            </div>
-            <h4 className="font-semibold mb-2">Where {name} uses Artan materials</h4>
-            <ul className="list-disc pl-5 space-y-1 text-sm text-slate-700">
-              <li>Representative use case 1 for {name}</li>
-              <li>Representative use case 2 for {name}</li>
-              <li>Representative use case 3 for {name}</li>
-            </ul>
-          </Card>
-          <Card>
-            <h4 className="font-semibold mb-2">Recommended product families</h4>
-            <ul className="list-disc pl-5 space-y-1 text-sm text-slate-700">
-              <li>
-                <Link to="/products/corethread" className="text-red-700 hover:underline">
-                  CoreThread
-                </Link>{" "}
-                — seam integrity at temperature
-              </li>
-              <li>
-                <Link to="/products/armorweave" className="text-red-700 hover:underline">
-                  ArmorWeave
-                </Link>{" "}
-                — FR shells, liners and barriers
-              </li>
-              <li>
-                <Link to="/products/armorshield" className="text-red-700 hover:underline">
-                  ArmorShield
-                </Link>{" "}
-                — pilot PPE assemblies
-              </li>
-            </ul>
-          </Card>
-        </div>
-      </Section>
-    </main>
-  );
-};
 
 function Downloads() {
   return (
-    <main>
-      <Section eyebrow="Downloads" title="Brochures and spec sheets">
-        <div className="flex flex-wrap gap-3">
-          <Button href="/brochures/artan-corethread.pdf" variant="outline" newTab>
-            <Icon.Download className="h-4 w-4" /> CoreThread
-          </Button>
-          <Button href="/brochures/artan-armorweave.pdf" variant="outline" newTab>
-            <Icon.Download className="h-4 w-4" /> ArmorWeave
-          </Button>
-          <Button href="/brochures/artan-ppe.pdf" variant="outline" newTab>
-            <Icon.Download className="h-4 w-4" /> PPE Program
-          </Button>
-        </div>
-      </Section>
-    </main>
-  );
-}
-
-function About() {
-  return (
-    <main>
-      <Section eyebrow="About" title="About Artan Protec" lead="Focused on engineered FR performance from fiber to finished gear.">
-        <div className="grid gap-6 md:grid-cols-2">
-          <Card>
-            <p className="text-sm text-slate-700">
-              Artan Protec delivers high-performance aramid yarns, threads, fabrics and PPE components. Our teams align material properties with application realities to enable reliable, documented and scalable programs.
-            </p>
-          </Card>
-          <Card>
-            <h4 className="font-semibold mb-2">At a glance</h4>
-            <div className="grid grid-cols-2 gap-4 text-sm text-slate-700">
-              <div>
-                <p className="text-slate-500">Product families</p>
-                <p className="font-semibold">3</p>
-              </div>
-              <div>
-                <p className="text-slate-500">Target GSM range</p>
-                <p className="font-semibold">150–280 (apparel)</p>
-              </div>
-              <div>
-                <p className="text-slate-500">Thread constructions</p>
-                <p className="font-semibold">2–8 ply staple</p>
-              </div>
-              <div>
-                <p className="text-slate-500">Customization</p>
-                <p className="font-semibold">Logos and shades</p>
-              </div>
-            </div>
-          </Card>
-        </div>
-      </Section>
-    </main>
+    <Section eyebrow="Downloads" title="Brochures & spec sheets">
+      <div className="flex flex-wrap gap-3">
+        <GlowButton href="/brochures/artan-corethread.pdf" variant="ghost" newTab>
+          <Download className="h-4 w-4" /> CoreThread
+        </GlowButton>
+        <GlowButton href="/brochures/artan-armorweave.pdf" variant="ghost" newTab>
+          <Download className="h-4 w-4" /> ArmorWeave
+        </GlowButton>
+        <GlowButton href="/brochures/artan-ppe.pdf" variant="ghost" newTab>
+          <Download className="h-4 w-4" /> PPE Program
+        </GlowButton>
+      </div>
+    </Section>
   );
 }
 
 function Contact() {
   return (
-    <main>
-      <Section
-        eyebrow="Contact"
-        title="Talk to our team"
-        lead="Submit specs or drawings. We will respond with the right thread, fabric or PPE program."
-      >
+    <>
+      <Section eyebrow="Contact" title="Talk to our team" lead="Submit specs or drawings — we'll respond with the right thread, fabric or PPE program.">
         <div className="grid gap-6 md:grid-cols-2">
-          <Card>
-            <div className="flex items-center gap-2 font-semibold">
-              <Icon.Mail className="h-5 w-5" /> Emails
-            </div>
+          <GCard>
+            <div className="flex items-center gap-2 text-slate-900 font-semibold"><Mail className="h-5 w-5 text-red-600"/> Emails</div>
             <ul className="mt-2 text-slate-700 text-sm space-y-2">
               <li>
-                <strong>Primary:</strong>{" "}
-                <a className="hover:underline" href="mailto:artanprotec@gmail.com">
-                  artanprotec@gmail.com
-                </a>
+                <strong>Primary:</strong> <a className="hover:underline" href="mailto:artanprotec@gmail.com">artanprotec@gmail.com</a>
               </li>
             </ul>
-            <p className="text-xs text-slate-500 mt-3">
-              Enable Netlify form notifications → Forms → contact → Notifications → Email to this address.
-            </p>
-          </Card>
-          <Card>
-            <div className="flex items-center gap-2 font-semibold">
-              <Icon.Phone className="h-5 w-5" /> Phone
-            </div>
+            <p className="text-xs text-slate-500 mt-3">Enable Netlify form notifications → Forms → contact → Notifications → Email to this address.</p>
+          </GCard>
+          <GCard>
+            <div className="flex items-center gap-2 text-slate-900 font-semibold"><Phone className="h-5 w-5 text-red-600"/> Phone</div>
             <p className="mt-2 text-slate-700 text-sm">USA: +1 470 445 0578</p>
-          </Card>
+          </GCard>
         </div>
-        <Card className="mt-6">
+        <GCard className="mt-6">
           <form name="contact" method="POST" data-netlify="true" netlify-honeypot="bot-field" className="grid md:grid-cols-3 gap-4">
             <input type="hidden" name="form-name" value="contact" />
-            <p className="hidden">
-              <label>
-                Do not fill this out if you are human: <input name="bot-field" />
-              </label>
-            </p>
-            <input
-              required
-              name="name"
-              placeholder="Name"
-              className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 placeholder:text-slate-400"
-            />
-            <input
-              required
-              type="email"
-              name="email"
-              placeholder="Email"
-              className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 placeholder:text-slate-400"
-            />
-            <input
-              name="company"
-              placeholder="Company"
-              className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 placeholder:text-slate-400"
-            />
-            <textarea
-              required
-              name="message"
-              placeholder="Project / Specs"
-              className="md:col-span-3 rounded-xl border border-slate-300 bg-white px-4 py-3 min-h-[120px] text-slate-900 placeholder:text-slate-400"
-            />
-            <div className="md:col-span-3">
-              <Button type="submit">
-                <Icon.Mail className="h-4 w-4" /> Submit
-              </Button>
-            </div>
+            <p className="hidden"><label>Don’t fill this out if you're human: <input name="bot-field" /></label></p>
+            <input required name="name" placeholder="Name" className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 placeholder:text-slate-400" />
+            <input required type="email" name="email" placeholder="Email" className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 placeholder:text-slate-400" />
+            <input name="company" placeholder="Company" className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 placeholder:text-slate-400" />
+            <textarea required name="message" placeholder="Project / Specs" className="md:col-span-3 rounded-xl border border-slate-300 bg-white px-4 py-3 min-h-[120px] text-slate-900 placeholder:text-slate-400" />
+            <div className="md:col-span-3"><GlowButton type="submit"><Mail className="h-5 w-5" /> Submit</GlowButton></div>
           </form>
-        </Card>
+        </GCard>
       </Section>
-    </main>
+    </>
   );
 }
 
-/************** Industries page components generator **************/
-const Ind = {
-  PPE: () => <IndustryPage name="PPE" />, 
-  Filtration: () => <IndustryPage name="Filtration" />, 
-  Telecom: () => <IndustryPage name="Telecom" />, 
-  Utilities: () => <IndustryPage name="Utilities" />, 
-  OilGas: () => <IndustryPage name="Oil & Gas" />, 
-  FireServices: () => <IndustryPage name="Fire Services" />,
-};
-
-/************** Footer **************/
-function Footer() {
-  const year = new Date().getFullYear();
-  return (
-    <footer className="mt-20 border-t border-slate-200 bg-white">
-      <Container className="py-12 grid grid-cols-2 md:grid-cols-4 gap-8">
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <img src="/artan-protec-logo-mark.png" alt="Artan mark" className="h-7 w-7" onError={(e) => (e.currentTarget.style.display = "none")} />
-            <span className="font-semibold">Artan Protec</span>
-          </div>
-          <p className="text-sm text-slate-600">Advanced Protection | Engineered Performance</p>
-        </div>
-        <div>
-          <h5 className="text-xs font-semibold tracking-wider text-slate-500 uppercase mb-3">Products</h5>
-          <ul className="space-y-2 text-sm">
-            <li>
-              <Link to="/products" className="hover:underline">
-                All Products
-              </Link>
-            </li>
-            <li>
-              <Link to="/products/corethread" className="hover:underline">
-                CoreThread
-              </Link>
-            </li>
-            <li>
-              <Link to="/products/armorweave" className="hover:underline">
-                ArmorWeave
-              </Link>
-            </li>
-            <li>
-              <Link to="/products/armorshield" className="hover:underline">
-                ArmorShield
-              </Link>
-            </li>
-          </ul>
-        </div>
-        <div>
-          <h5 className="text-xs font-semibold tracking-wider text-slate-500 uppercase mb-3">Industries</h5>
-          <ul className="space-y-2 text-sm">
-            <li>
-              <Link to="/industries" className="hover:underline">
-                Overview
-              </Link>
-            </li>
-            <li>
-              <Link to="/industries/ppe" className="hover:underline">
-                PPE
-              </Link>
-            </li>
-            <li>
-              <Link to="/industries/filtration" className="hover:underline">
-                Filtration
-              </Link>
-            </li>
-            <li>
-              <Link to="/industries/telecom" className="hover:underline">
-                Telecom
-              </Link>
-            </li>
-            <li>
-              <Link to="/industries/utilities" className="hover:underline">
-                Utilities
-              </Link>
-            </li>
-            <li>
-              <Link to="/industries/oilgas" className="hover:underline">
-                Oil & Gas
-              </Link>
-            </li>
-            <li>
-              <Link to="/industries/fireservices" className="hover:underline">
-                Fire Services
-              </Link>
-            </li>
-          </ul>
-        </div>
-        <div>
-          <h5 className="text-xs font-semibold tracking-wider text-slate-500 uppercase mb-3">Company</h5>
-          <ul className="space-y-2 text-sm">
-            <li>
-              <Link to="/" className="hover:underline">
-                Home
-              </Link>
-            </li>
-            <li>
-              <Link to="/about" className="hover:underline">
-                About
-              </Link>
-            </li>
-            <li>
-              <Link to="/downloads" className="hover:underline">
-                Downloads
-              </Link>
-            </li>
-            <li>
-              <Link to="/contact" className="hover:underline">
-                Contact
-              </Link>
-            </li>
-          </ul>
-        </div>
-      </Container>
-      <div className="border-t border-slate-200">
-        <Container className="py-4 text-xs text-slate-500 flex items-center justify-between">
-          <span>© {year} Artan Protec. All rights reserved.</span>
-          <span>Made for performance-critical applications.</span>
-        </Container>
-      </div>
-    </footer>
-  );
+// --------------------------- Tiny hash router ----------------------------
+function useHashPath() {
+  const getPath = () => {
+    const raw = typeof window !== "undefined" ? window.location.hash : "";
+    const path = (raw || "").replace(/^#/, "");
+    return path || "/";
+  };
+  const [path, setPath] = useState(getPath);
+  useEffect(() => {
+    const onHash = () => setPath(getPath());
+    if (typeof window !== "undefined") window.addEventListener("hashchange", onHash);
+    return () => {
+      if (typeof window !== "undefined") window.removeEventListener("hashchange", onHash);
+    };
+  }, []);
+  return path;
 }
 
-/************** Routes **************/
-function AppRoutes() {
-  return (
-    <Routes>
-      <Route path="/" element={<Home />} />
-      <Route path="/products" element={<ProductsIndex />} />
-      <Route path="/products/corethread" element={<ProductPage fam={FAMILIES[0]} />} />
-      <Route path="/products/armorweave" element={<ProductPage fam={FAMILIES[1]} />} />
-      <Route path="/products/armorshield" element={<ProductPage fam={FAMILIES[2]} />} />
-      <Route path="/industries" element={<IndustriesIndex />} />
-      <Route path="/industries/ppe" element={<Ind.PPE />} />
-      <Route path="/industries/filtration" element={<Ind.Filtration />} />
-      <Route path="/industries/telecom" element={<Ind.Telecom />} />
-      <Route path="/industries/utilities" element={<Ind.Utilities />} />
-      <Route path="/industries/oilgas" element={<Ind.OilGas />} />
-      <Route path="/industries/fireservices" element={<Ind.FireServices />} />
-      <Route path="/downloads" element={<Downloads />} />
-      <Route path="/about" element={<About />} />
-      <Route path="/contact" element={<Contact />} />
-    </Routes>
-  );
+function RouterView() {
+  const path = useHashPath();
+  if (path === "/" || path === "") return <Home />;
+  if (path.startsWith("/corethread")) return <ProductPage fam={FAMILIES[0]} />;
+  if (path.startsWith("/armorweave")) return <ProductPage fam={FAMILIES[1]} />;
+  if (path.startsWith("/armorshield")) return <ProductPage fam={FAMILIES[2]} />;
+  if (path.startsWith("/why")) return <Why />;
+  if (path.startsWith("/downloads")) return <Downloads />;
+  if (path.startsWith("/contact")) return <Contact />;
+  return <Home />;
 }
 
-/************** Dev sanity checks (non-blocking) **************/
-function DevDiagnostics() {
-  try {
-    const famPathsOk = FAMILIES.every((f) => typeof f.path === "string" && f.path.startsWith("/products/"));
-    const dlOk = FAMILIES.every((f) => f.downloads.every((d) => /^\/(brochures|images)\//.test(d.href) || /^https?:\/\//.test(d.href)));
-    if (import.meta && import.meta.env && import.meta.env.DEV) {
-      // eslint-disable-next-line no-console
-      console.log("Diagnostics:", { famPathsOk, dlOk });
-    }
-  } catch (e) {
-    // eslint-disable-next-line no-console
-    console.warn("Diagnostics error", e);
+// ---------------------------- Dev sanity checks --------------------------
+function runSimpleTests() {
+  const cases = [
+    ["/corethread", "#/corethread"],
+    ["downloads", "#/downloads"],
+    ["/", "#/"],
+    [" /downloads ", "#/downloads"],
+    ["/brochures/artan-corethread.pdf", "/brochures/artan-corethread.pdf"],
+    ["https://example.com", "https://example.com"],
+    ["#/_directHash", "#/_directHash"],
+    ["   ", undefined],
+    [undefined, undefined],
+    ["mailto:hello@artanprotec.com", "mailto:hello@artanprotec.com"],
+    ["tel:+14704450578", "tel:+14704450578"],
+    ["blob:abc", "blob:abc"],
+    ["data:,", "data:,"],
+  ];
+  let pass = 0;
+  for (const [input, expected] of cases) {
+    const out = toHref(input);
+    if (out === expected) pass++; else console.warn("toHref FAIL", { input, out, expected });
   }
-  return null;
+  console.log(`toHref tests: ${pass}/${cases.length} passed`);
 }
 
-/************** App Shell with theme provider **************/
-export default function App() {
-  const [isLight, setIsLight] = useState(true);
-  const toggle = useCallback(() => setIsLight((v) => !v), []);
-  const ctx = useMemo(() => ({ isLight, toggle }), [isLight, toggle]);
+if (typeof window !== "undefined" && import.meta && import.meta.env && import.meta.env.DEV) {
+  try { runSimpleTests(); } catch (e) { console.warn("self-tests error", e); }
+}
+
+function DevDiagnostics() {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    try {
+      const h = typeof window !== "undefined" ? window.location.hash : "";
+      setShow((h || "").includes("debug"));
+    } catch {/* noop */}
+  }, []);
+  if (!show) return null;
+  const tests = [
+    { name: "All product paths start with /", pass: FAMILIES.every((f) => typeof f.path === "string" && f.path.startsWith("/") && !/\s/.test(f.path)) },
+    { name: "Downloads look like files or http(s)", pass: FAMILIES.every((f) => f.downloads.every((d) => isExternalOrFile(d.href))) },
+  ];
+  const failures = tests.filter((t) => !t.pass);
   return (
-    <ThemeCtx.Provider value={ctx}>
-      <Router>
-        <Navbar />
-        <div className="pt-16">{/* spacer for fixed navbar */}
-          <AppRoutes />
-          <Footer />
-        </div>
-        <DevDiagnostics />
-      </Router>
-    </ThemeCtx.Provider>
+    <div className="fixed bottom-4 right-4 z-50 rounded-xl border border-slate-200 bg-white/90 px-4 py-3 text-xs text-slate-700 shadow-lg">
+      <div className="font-semibold mb-2">Dev Diagnostics</div>
+      <ul className="space-y-1">
+        {tests.map((t) => (
+          <li key={t.name} className={t.pass ? "text-emerald-600" : "text-rose-600"}>
+            {t.pass ? "✓" : "✗"} {t.name}
+          </li>
+        ))}
+      </ul>
+      {failures.length === 0 ? (
+        <div className="mt-2 text-emerald-600">All tests passed.</div>
+      ) : (
+        <div className="mt-2 text-rose-600">{failures.length} test(s) failed.</div>
+      )}
+      <div className="mt-2 text-slate-500">(Hide by removing #/debug from URL)</div>
+    </div>
   );
 }
+
+// ------------------------------- App ------------------------------------
+export default function App() {
+  return (
+    <div className="min-h-screen">
+      <SiteFrame>
+        <RouterView />
+      </SiteFrame>
+    </div>
+  );
+}
+
