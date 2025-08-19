@@ -25,10 +25,32 @@ import {
  * Colors: Red / Black / White theme.
  * Navbar: Home, Products, Industries, About, Contact.
  * Animations: Scroll‑reveal + subtle hero parallax.
- * Logo: place /public/artan-logo.png or set LOGO_SRC to your asset path.
+ * Logo: place /public/artan-protec-logo.png OR set LOGO_SRC to your asset path.
+ * Hero: place /public/hero.jpg OR set HERO_SRC.
+ * Product images & brochures: drop files into /public/images and /public/brochures
+ *   - /images/aramid-yarn.jpg
+ *   - /images/ppe-fabrics.jpg
+ *   - /images/ballistic.jpg
+ *   - /brochures/aramid-yarn-thread.pdf
+ *   - /brochures/ppe-fabrics.pdf
+ *   - /brochures/ballistic-systems.pdf
  */
 
-const LOGO_SRC = "/artan-logo.png"; // place this file in your public/ folder
+const LOGO_SRC = "/artan-protec-logo.png"; // place this file in your public/ folder
+const HERO_SRC = "/hero.jpg"; // place this file in your public/ folder
+
+// Image & brochure maps (drop files with these names and paths)
+const PRODUCT_IMAGES = {
+  "aramid-yarn-thread": "/images/aramid-yarn.jpg",
+  "ppe-fabrics": "/images/ppe-fabrics.jpg",
+  "ballistic-uhmwpe": "/images/ballistic.jpg",
+};
+
+const PRODUCT_BROCHURES = {
+  "aramid-yarn-thread": "/brochures/aramid-yarn-thread.pdf",
+  "ppe-fabrics": "/brochures/ppe-fabrics.pdf",
+  "ballistic-uhmwpe": "/brochures/ballistic-systems.pdf",
+};
 
 const PAGES = {
   HOME: "home",
@@ -242,8 +264,9 @@ function Header({
             <NavLink onClick={() => onNavigate(PAGES.CONTACT)}>Contact</NavLink>
             <a
               className="ml-2 inline-flex items-center gap-2 rounded-xl border border-red-600 px-3 py-2 text-sm text-red-700 hover:bg-red-50"
-              href="#"
-              onClick={(e) => e.preventDefault()}
+              href="/brochures/artan-protec-brochure.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
             >
               <Download className="w-4 h-4" /> Brochure
             </a>
@@ -349,8 +372,9 @@ function Header({
             </button>
             <a
               className="block px-2 py-2 text-red-700"
-              href="#"
-              onClick={(e) => e.preventDefault()}
+              href="/brochures/artan-protec-brochure.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
             >
               Download Brochure
             </a>
@@ -486,16 +510,16 @@ function Home({ onExplore, goProducts, goAbout, goIndustries }) {
           </div>
         </Reveal>
 
-        {/* Hero image placeholder with subtle parallax */}
+        {/* Hero image with subtle parallax */}
         <Reveal>
           <motion.div style={{ y }} className="relative">
-            <div className="aspect-[4/3] rounded-3xl bg-neutral-100 border border-red-200 grid place-items-center">
-              <div className="text-neutral-500 text-sm">
-                Hero image / render placeholder
-              </div>
-            </div>
-            <div className="absolute -bottom-6 -left-6 w-40 h-40 rounded-3xl bg-neutral-100 border border-red-200 grid place-items-center hidden md:grid">
-              <span className="text-neutral-500 text-xs">Secondary visual</span>
+            <img
+              src={HERO_SRC}
+              alt="Artan Protec hero"
+              className="aspect-[4/3] w-full h-auto object-cover rounded-3xl border border-red-200"
+            />
+            <div className="absolute -bottom-6 -left-6 w-40 h-40 rounded-3xl overflow-hidden border border-red-200 hidden md:block">
+              <img src={HERO_SRC} alt="Artan Protec secondary" className="w-full h-full object-cover opacity-80" />
             </div>
           </motion.div>
         </Reveal>
@@ -513,6 +537,13 @@ function Home({ onExplore, goProducts, goAbout, goIndustries }) {
                     <div className="font-semibold">{p.title}</div>
                   </div>
                   <div className="mt-2 text-sm text-neutral-600">{p.blurb}</div>
+                  <div className="mt-4">
+                    <img
+                      src={PRODUCT_IMAGES[p.key] || "/images/placeholder.jpg"}
+                      alt={p.title}
+                      className="aspect-[4/3] w-full object-cover rounded-xl border border-red-200"
+                    />
+                  </div>
                   <button
                     className="mt-4 inline-flex items-center gap-1 text-sm text-red-700"
                     onClick={goProducts}
@@ -644,8 +675,12 @@ function Products({ onSelect }) {
               <div className="font-semibold">{p.title}</div>
             </div>
             <div className="mt-2 text-sm text-neutral-600">{p.blurb}</div>
-            <div className="mt-4 aspect-[4/3] rounded-xl bg-neutral-100 border border-red-200 grid place-items-center">
-              <span className="text-neutral-500 text-xs">Image / render placeholder</span>
+            <div className="mt-4">
+              <img
+                src={PRODUCT_IMAGES[p.key] || "/images/placeholder.jpg"}
+                alt={p.title}
+                className="aspect-[4/3] w-full object-cover rounded-xl border border-red-200"
+              />
             </div>
           </motion.button>
         ))}
@@ -698,9 +733,14 @@ function ProductDetail({ keyId, onBack }) {
       <h3 className="text-3xl font-extrabold tracking-tight">{meta.title}</h3>
       <p className="mt-2 text-neutral-700">{meta.blurb}</p>
 
-      {/* Gallery placeholders */}
+      {/* Gallery (uses main image once; others placeholders) */}
       <div className="mt-6 grid md:grid-cols-2 gap-4">
-        {[1, 2, 3, 4].map((n) => (
+        <img
+          src={PRODUCT_IMAGES[keyId] || "/images/placeholder.jpg"}
+          alt={meta.title}
+          className="aspect-[4/3] w-full object-cover rounded-xl border border-red-200"
+        />
+        {[2, 3, 4].map((n) => (
           <div
             key={n}
             className="aspect-[4/3] rounded-xl bg-neutral-100 border border-red-200 grid place-items-center"
@@ -734,13 +774,15 @@ function ProductDetail({ keyId, onBack }) {
       {/* CTA row */}
       <div className="mt-6 flex flex-wrap gap-3">
         <a
-          href="#"
+          href={PRODUCT_BROCHURES[keyId] || "#"}
+          target="_blank"
+          rel="noopener noreferrer"
           className="inline-flex items-center gap-2 rounded-xl bg-black text-white px-4 py-3"
         >
           <Download className="w-4 h-4" />Download Datasheet
         </a>
         <a
-          href="#"
+          href="mailto:artanprotec@gmail.com"
           className="inline-flex items-center gap-2 rounded-xl border border-red-600 text-red-700 px-4 py-3 hover:bg-red-50"
         >
           <Mail className="w-4 h-4" />Enquire
@@ -795,13 +837,15 @@ function IndustryDetail({ keyId, onBack }) {
 
       <div className="mt-6 flex flex-wrap gap-3">
         <a
-          href="#"
+          href={`/brochures/industry-${keyId}.pdf`}
+          target="_blank"
+          rel="noopener noreferrer"
           className="inline-flex items-center gap-2 rounded-xl bg-black text-white px-4 py-3"
         >
           <Download className="w-4 h-4" />Industry One‑pager
         </a>
         <a
-          href="#"
+          href="mailto:artanprotec@gmail.com"
           className="inline-flex items-center gap-2 rounded-xl border border-red-600 text-red-700 px-4 py-3 hover:bg-red-50"
         >
           <Mail className="w-4 h-4" />Talk to Sales
@@ -938,8 +982,9 @@ function Footer({ onNavigate }) {
               Contact
             </FooterLink>
             <a
-              href="#"
-              onClick={(e) => e.preventDefault()}
+              href="/brochures/artan-protec-brochure.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
               className="block text-sm text-red-700 hover:text-red-800"
             >
               Download Brochure
@@ -1001,4 +1046,3 @@ function MobileDisclosure({ label, children }) {
     </div>
   );
 }
-
