@@ -1062,10 +1062,16 @@ function Contact() {
 }
 
 
-function StickyQuote({ onClick }) {
+function StickyQuote() {
+  const openMail = () => {
+    window.location.href =
+      "mailto:artanprotec@gmail.com?subject=" +
+      encodeURIComponent("Quote Request - Artan Protec");
+  };
+
   return (
     <button
-      onClick={onClick}
+      onClick={openMail}
       className="fixed bottom-6 right-6 z-50 inline-flex items-center gap-2 rounded-full bg-red-600 text-white px-5 py-3 shadow-lg hover:brightness-110"
       aria-label="Get Quote"
     >
@@ -1073,6 +1079,7 @@ function StickyQuote({ onClick }) {
     </button>
   );
 }
+
 
 function Footer({ onNavigate }) {
   return (
