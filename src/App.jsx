@@ -967,6 +967,26 @@ function About() {
 }
 
 function Contact() {
+  const [status, setStatus] = useState("");
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const formData = new FormData(form);
+
+    try {
+      await fetch("/", {
+        method: "POST",
+        body: new URLSearchParams(formData).toString(),
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      });
+      setStatus("SUCCESS");
+      form.reset();
+    } catch (error) {
+      setStatus("ERROR");
+    }
+  };
+
   return (
     <section className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <SectionHeader title="Contact" subtitle="Let’s build together" />
@@ -979,36 +999,68 @@ function Contact() {
             </a>
             <div className="mt-4 text-sm text-neutral-500">Phone</div>
             <a className="font-medium" href="tel:+14704450578">
-              +1 (470) 445‑0578
+              +1 (470) 445-0578
             </a>
             <div className="mt-4 text-sm text-neutral-500">HQ</div>
             <div className="font-medium">Mumbai, India</div>
           </div>
-          <form className="grid gap-3">
+
+          {/* Netlify-enabled form */}
+          <form
+            name="contact"
+            method="POST"
+            data-netlify="true"
+            data-netlify-honeypot="bot-field"
+            onSubmit={handleSubmit}
+            className="grid gap-3"
+          >
+            <input type="hidden" name="form-name" value="contact" />
+            <p className="hidden">
+              <label>
+                Don’t fill this out: <input name="bot-field" />
+              </label>
+            </p>
             <input
+              name="name"
               className="border border-red-300 rounded-xl px-3 py-2"
               placeholder="Name"
+              required
             />
             <input
+              name="email"
+              type="email"
               className="border border-red-300 rounded-xl px-3 py-2"
               placeholder="Email"
+              required
             />
             <textarea
+              name="message"
               className="border border-red-300 rounded-xl px-3 py-2 min-h-[100px]"
               placeholder="Tell us about your requirement"
+              required
             />
             <button
-              type="button"
+              type="submit"
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 text-white px-4 py-3"
             >
               <Mail className="w-4 h-4" /> Send
             </button>
           </form>
         </div>
+
+        {status === "SUCCESS" && (
+          <p className="mt-3 text-green-600">Thanks! We’ll be in touch soon.</p>
+        )}
+        {status === "ERROR" && (
+          <p className="mt-3 text-red-600">
+            Something went wrong. Please try again.
+          </p>
+        )}
       </div>
     </section>
   );
 }
+
 
 function StickyQuote({ onClick }) {
   return (
@@ -1132,102 +1184,6 @@ function MobileDisclosure({ label, children }) {
         />
       </button>
       {open && <div className="px-2 pb-3 space-y-2">{children}</div>}
-    </div>
-  );
-}
-import React, { useState } from "react";
-import { Mail } from "lucide-react";
-
-export default function ContactForm() {
-  const [status, setStatus] = useState("");
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const form = e.target;
-    const formData = new FormData(form);
-
-    try {
-      await fetch("/", {
-        method: "POST",
-        body: new URLSearchParams(formData).toString(),
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      });
-      setStatus("SUCCESS");
-      form.reset();
-    } catch (error) {
-      setStatus("ERROR");
-    }
-  };
-
-  const openMailQuote = (product) => {
-    const subject = encodeURIComponent(`Quote Request: ${product}`);
-    const body = encodeURIComponent(
-      `Hello Artan Protech Team,%0D%0A%0D%0AI would like to request a quote for ${product}.%0D%0A%0D%0ARegards,`
-    );
-    window.location.href = `mailto:artanprotec@gmail.com?subject=${subject}&body=${body}`;
-  };
-
-  return (
-    <div className="max-w-xl mx-auto p-6 bg-white rounded-xl shadow">
-      <h2 className="text-2xl font-bold mb-4">Contact Us</h2>
-      <form
-        name="contact"
-        method="POST"
-        data-netlify="true"
-        data-netlify-honeypot="bot-field"
-        onSubmit={handleSubmit}
-        className="grid gap-3"
-      >
-        <input type="hidden" name="form-name" value="contact" />
-        <p className="hidden">
-          <label>
-            Don’t fill this out if you’re human: <input name="bot-field" />
-          </label>
-        </p>
-        <input
-          type="text"
-          name="name"
-          placeholder="Your Name"
-          required
-          className="border p-2 rounded"
-        />
-        <input
-          type="email"
-          name="email"
-          placeholder="Your Email"
-          required
-          className="border p-2 rounded"
-        />
-        <textarea
-          name="message"
-          placeholder="Your Message"
-          rows="4"
-          required
-          className="border p-2 rounded"
-        ></textarea>
-        <button
-          type="submit"
-          className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
-        >
-          Send
-        </button>
-      </form>
-
-      {status === "SUCCESS" && (
-        <p className="mt-3 text-green-600">Thanks! We’ll be in touch soon.</p>
-      )}
-      {status === "ERROR" && (
-        <p className="mt-3 text-red-600">Something went wrong. Please try again.</p>
-      )}
-
-      <div className="mt-6">
-        <button
-          onClick={() => openMailQuote("General Inquiry")}
-          className="inline-flex items-center gap-2 border border-red-600 text-red-700 px-4 py-2 rounded hover:bg-red-50"
-        >
-          <Mail className="w-4 h-4" /> Open Mail App
-        </button>
-      </div>
     </div>
   );
 }
