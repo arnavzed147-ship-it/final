@@ -64,27 +64,87 @@ const PAGES = {
 
 const PRODUCT_CATEGORIES = [
   {
-    key: "aramid-yarn-thread",
-    title: "Aramid Yarn & Thread",
-    blurb:
-      "Meta‑ & para‑aramid yarns and sewing threads engineered for heat and abrasion resistance.",
+    key: "aramid-fibres-yarns",
+    title: "Aramid Fibres & Yarns",
+    blurb: "Meta & para aramid fibres and yarns for technical textiles.",
     icon: <Layers className="w-5 h-5" />,
   },
   {
-    key: "ppe-fabrics",
-    title: "PPE Fabrics",
-    blurb:
-      "Flame‑resistant, cut‑resistant, and technical textiles for industrial PPE and uniforms.",
+    key: "aramid-sewing-threads",
+    title: "Aramid Sewing Threads",
+    blurb: "High‑performance threads for heat and high‑tensile applications.",
     icon: <Shield className="w-5 h-5" />,
   },
   {
-    key: "ballistic-uhmwpe",
-    title: "Ballistic Systems — UHMWPE UD Sheets",
-    blurb:
-      "High‑performance unidirectional (UD) UHMWPE sheets for armor systems (e.g., SB51/HB50‑type equivalents).",
-    icon: <Shield className="w-5 h-5" />,
+    key: "aramid-fabrics",
+    title: "Aramid Fabrics – Woven & Nonwoven",
+    blurb: "Woven, needlefelt, blends, coated and laminated aramid fabrics.",
+    icon: <Layers className="w-5 h-5" />,
+  },
+  {
+    key: "technical-fabric-conversions",
+    title: "Technical Fabric Conversions",
+    blurb: "Converted media for filtration and specialized use.",
+    icon: <Factory className="w-5 h-5" />,
+  },
+  {
+    key: "ppe-frr-products",
+    title: "PPE & FRR Products",
+    blurb: "Protective fabrics for turnout gear, arc‑flash, gloves and shells.",
+    icon: <Flame className="w-5 h-5" />,
+  },
+  {
+    key: "specialized-aramid-applications",
+    title: "Specialized Aramid Applications",
+    blurb: "Composites reinforcement, insulation felts, aramid paper and more.",
+    icon: <Building2 className="w-5 h-5" />,
   },
 ];
+
+const PRODUCT_SUBCATS = {
+  "aramid-fibres-yarns": [
+    "Meta-aramid staple fibre",
+    "Para-aramid staple fibre",
+    "Dope-dyed meta-aramid fibres (various colors)",
+    "Aramid filament yarns",
+    "Aramid spun yarns (meta, para, blends)",
+    "Hybrid yarns (aramid + P84, aramid + glass, aramid + FR polyester)",
+  ],
+  "aramid-sewing-threads": [
+    "2-ply to 6-ply aramid threads",
+    "Meta-aramid threads for heat resistance",
+    "Para-aramid threads for high tensile applications",
+    "Bonded aramid threads for sewing heavy PPE",
+    "PTFE-coated aramid threads (chemical resistance)",
+  ],
+  "aramid-fabrics": [
+    "Woven meta-aramid fabrics (plain, twill, satin)",
+    "Woven para-aramid fabrics (ballistic, high-strength)",
+    "Needlefelt aramid fabrics (industrial filtration use)",
+    "Aramid blends (aramid + P84, aramid + PPS)",
+    "Coated aramid fabrics (silicone, PTFE, PU)",
+    "Laminated aramid fabrics for PPE",
+    "Aramid scrim",
+  ],
+  "technical-fabric-conversions": [
+    "Filter press cloths (meta/para-aramid blends)",
+    "Antistatic aramid filter media",
+    "Food-grade aramid filter materials",
+  ],
+  "ppe-frr-products": [
+    "Firefighter turnout gear fabrics",
+    "Arc flash protective fabrics",
+    "Cut-resistant fabrics (aramid + UHMWPE blends)",
+    "Heat-resistant gloves & mitt fabrics",
+    "Industrial PPE outer shells (jackets, coveralls)",
+  ],
+  "specialized-aramid-applications": [
+    "Reinforcement fabrics for composites (UHMWPE)",
+    "High-temp conveyor belts (aramid core)",
+    "Aramid felts for insulation",
+    "Aramid paper (for electrical insulation)",
+  ],
+};
 
 const INDUSTRY_PAGES = [
   {
@@ -661,9 +721,8 @@ function Products({ onSelect }) {
       <SectionHeader title="Products" subtitle="Catalog" />
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
         {PRODUCT_CATEGORIES.map((p, idx) => (
-          <motion.button
+          <motion.div
             key={p.key}
-            onClick={() => onSelect(p.key)}
             className="text-left rounded-2xl border border-red-200 hover:border-red-300 p-5"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -675,14 +734,28 @@ function Products({ onSelect }) {
               <div className="font-semibold">{p.title}</div>
             </div>
             <div className="mt-2 text-sm text-neutral-600">{p.blurb}</div>
-            <div className="mt-4">
+
+            <div className="mt-3">
               <img
-                src={PRODUCT_IMAGES[p.key] || "/images/placeholder.jpg"}
+                src={PRODUCT_IMAGES?.[p.key] || "/images/placeholder.jpg"}
                 alt={p.title}
                 className="aspect-[4/3] w-full object-cover rounded-xl border border-red-200"
               />
             </div>
-          </motion.button>
+
+            <ul className="mt-4 space-y-1 text-sm list-disc pl-5">
+              {(PRODUCT_SUBCATS[p.key] || []).map((s) => (
+                <li key={s} className="text-neutral-700">{s}</li>
+              ))}
+            </ul>
+
+            <button
+              className="mt-4 inline-flex items-center gap-1 text-sm text-red-700"
+              onClick={() => onSelect(p.key)}
+            >
+              Explore <ChevronRight className="w-4 h-4" />
+            </button>
+          </motion.div>
         ))}
       </div>
     </section>
@@ -722,6 +795,8 @@ function Industries({ onSelect }) {
 function ProductDetail({ keyId, onBack }) {
   const meta = PRODUCT_CATEGORIES.find((p) => p.key === keyId);
   if (!meta) return null;
+  const subs = PRODUCT_SUBCATS[keyId] || [];
+
   return (
     <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <button
@@ -730,43 +805,34 @@ function ProductDetail({ keyId, onBack }) {
       >
         <ChevronRight className="-scale-x-100 w-4 h-4" /> Back to Products
       </button>
+
       <h3 className="text-3xl font-extrabold tracking-tight">{meta.title}</h3>
       <p className="mt-2 text-neutral-700">{meta.blurb}</p>
 
-      {/* Gallery (uses main image once; others placeholders) */}
+      {/* Gallery */}
       <div className="mt-6 grid md:grid-cols-2 gap-4">
         <img
-          src={PRODUCT_IMAGES[keyId] || "/images/placeholder.jpg"}
+          src={PRODUCT_IMAGES?.[keyId] || "/images/placeholder.jpg"}
           alt={meta.title}
           className="aspect-[4/3] w-full object-cover rounded-xl border border-red-200"
         />
-        {[2, 3, 4].map((n) => (
-          <div
-            key={n}
-            className="aspect-[4/3] rounded-xl bg-neutral-100 border border-red-200 grid place-items-center"
-          >
-            <span className="text-neutral-500 text-xs">Product image {n}</span>
+        {[2,3,4].map((n) => (
+          <div key={n} className="aspect-[4/3] rounded-xl bg-neutral-100 border border-red-200 grid place-items-center">
+            <span className="text-neutral-500 text-xs">Product visual {n}</span>
           </div>
         ))}
       </div>
 
-      {/* Specs table placeholder */}
+      {/* Catalogue items */}
       <div className="mt-8 rounded-2xl border border-red-200 overflow-hidden">
         <div className="px-4 py-3 bg-red-50 border-b border-red-200 text-sm font-medium">
-          Key Specifications
+          Catalogue Items
         </div>
         <div className="p-4">
           <ul className="list-disc pl-5 text-neutral-700 space-y-1">
-            <li>
-              Performance ratings (FR, abrasion, thermal / impact) — add exact
-              figures.
-            </li>
-            <li>
-              Available counts / widths / weights (or areal densities for UD
-              sheets).
-            </li>
-            <li>Colorways and finishes.</li>
-            <li>Compliance & testing: ASTM/ISO/NIJ where relevant.</li>
+            {subs.map((s) => (
+              <li key={s}>{s}</li>
+            ))}
           </ul>
         </div>
       </div>
@@ -774,18 +840,18 @@ function ProductDetail({ keyId, onBack }) {
       {/* CTA row */}
       <div className="mt-6 flex flex-wrap gap-3">
         <a
-          href={PRODUCT_BROCHURES[keyId] || "#"}
+          href={PRODUCT_BROCHURES?.[keyId] || "#"}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-2 rounded-xl bg-black text-white px-4 py-3"
         >
-          <Download className="w-4 h-4" />Download Datasheet
+          <Download className="w-4 h-4" /> Download Catalogue
         </a>
         <a
           href="mailto:artanprotec@gmail.com"
           className="inline-flex items-center gap-2 rounded-xl border border-red-600 text-red-700 px-4 py-3 hover:bg-red-50"
         >
-          <Mail className="w-4 h-4" />Enquire
+          <Mail className="w-4 h-4" /> Enquire
         </a>
       </div>
     </section>
