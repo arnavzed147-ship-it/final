@@ -191,6 +191,8 @@ export default function ArtanProtechSite() {
     setMobileOpen(false);
   }, [page]);
 
+  const goToQuote = () => setPage(PAGES.CONTACT);
+
   return (
     <div className="min-h-screen bg-white text-neutral-900 flex flex-col">
       <Header
@@ -246,6 +248,8 @@ export default function ArtanProtechSite() {
           />
         )}
       </main>
+
+      {page === PAGES.HOME && <StickyQuote onClick={goToQuote} />}
 
       <Footer onNavigate={setPage} />
     </div>
@@ -734,7 +738,6 @@ function Products({ onSelect }) {
               <div className="font-semibold">{p.title}</div>
             </div>
             <div className="mt-2 text-sm text-neutral-600">{p.blurb}</div>
-
             <div className="mt-3">
               <img
                 src={PRODUCT_IMAGES?.[p.key] || "/images/placeholder.jpg"}
@@ -742,19 +745,27 @@ function Products({ onSelect }) {
                 className="aspect-[4/3] w-full object-cover rounded-xl border border-red-200"
               />
             </div>
-
-            <ul className="mt-4 space-y-1 text-sm list-disc pl-5">
-              {(PRODUCT_SUBCATS[p.key] || []).map((s) => (
-                <li key={s} className="text-neutral-700">{s}</li>
-              ))}
-            </ul>
-
-            <button
-              className="mt-4 inline-flex items-center gap-1 text-sm text-red-700"
-              onClick={() => onSelect(p.key)}
-            >
-              Explore <ChevronRight className="w-4 h-4" />
-            </button>
+            {typeof PRODUCT_SUBCATS !== 'undefined' && (
+              <ul className="mt-4 space-y-1 text-sm list-disc pl-5">
+                {(PRODUCT_SUBCATS[p.key] || []).map((s) => (
+                  <li key={s} className="text-neutral-700">{s}</li>
+                ))}
+              </ul>
+            )}
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                className="inline-flex items-center gap-1 text-sm text-red-700"
+                onClick={() => onSelect(p.key)}
+              >
+                Explore <ChevronRight className="w-4 h-4" />
+              </button>
+              <a
+                href={`mailto:artanprotec@gmail.com?subject=${encodeURIComponent('Quote request - ' + p.title)}`}
+                className="inline-flex items-center gap-2 rounded-xl border border-red-600 text-red-700 px-3 py-2 hover:bg-red-50 text-sm"
+              >
+                <Mail className="w-4 h-4" /> Get Quote
+              </a>
+            </div>
           </motion.div>
         ))}
       </div>
@@ -996,6 +1007,18 @@ function Contact() {
         </div>
       </div>
     </section>
+  );
+}
+
+function StickyQuote({ onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className="fixed bottom-6 right-6 z-50 inline-flex items-center gap-2 rounded-full bg-red-600 text-white px-5 py-3 shadow-lg hover:brightness-110"
+      aria-label="Get Quote"
+    >
+      <Mail className="w-4 h-4" /> Get Quote
+    </button>
   );
 }
 
