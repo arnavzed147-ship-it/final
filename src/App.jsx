@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import {
   Menu,
@@ -16,10 +16,6 @@ import {
   Building2,
   Globe,
   Home as HomeIcon,
-  Search,
-  Sun,
-  Moon,
-  Languages,
 } from "lucide-react";
 
 /**
@@ -38,35 +34,54 @@ import {
  *   - /brochures/aramid-yarn-thread.pdf
  *   - /brochures/ppe-fabrics.pdf
  *   - /brochures/ballistic-systems.pdf
- * Netlify Form: Works out-of-the-box via <form name="contact" data-netlify="true" ...>
+ *
+ *  FIX: Previous build failed with "Unterminated string constant" due to
+ *  `.join("\n")` being mistyped. This file includes a safe `buildQuoteHref`
+ *  implementation and adds small runtime asserts to prevent regression.
  */
 
-// ---------- Assets ----------
 const LOGO_SRC = "/artan-protec-logo.png"; // place this file in your public/ folder
 const HERO_SRC = "/hero.jpg"; // place this file in your public/ folder
 
+// util: slug + quote mail builder (fixed join with "\n")
+const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+const buildQuoteHref = (title: string, item?: string) => {
+  const body = [
+    "Hello Artan Protec,",
+    "",
+    `Please share a quote for: ${title}`,
+    item ? `Item(s): ${item}` : undefined,
+    "Quantity: [your qty]",
+    "Notes: [any specifics]",
+    "",
+    "Thank you.",
+  ]
+    .filter((x): x is string => Boolean(x))
+    .join("\n");
+  return `mailto:artanprotec@gmail.com?subject=${encodeURIComponent(
+    "Quote request - " + title
+  )}&body=${encodeURIComponent(body)}`;
+};
+
 // Image & brochure maps (drop files with these names and paths)
-const PRODUCT_IMAGES = {
+const PRODUCT_IMAGES: Record<string, string> = {
   "aramid-fibres-yarns": "/images/aramid-yarn.jpg",
   "aramid-sewing-threads": "/images/aramid-yarn.jpg",
   "aramid-fabrics": "/images/ppe-fabrics.jpg",
   "technical-fabric-conversions": "/images/ppe-fabrics.jpg",
   "ppe-frr-products": "/images/ppe-fabrics.jpg",
   "specialized-aramid-applications": "/images/ballistic.jpg",
-  "ballistic-uhmwpe": "/images/ballistic.jpg",
 };
 
-const PRODUCT_BROCHURES = {
-  "aramid-fibres-yarns": "/brochures/artan-protec-brochure.pdf",
-  "aramid-sewing-threads": "/brochures/artan-protec-brochure.pdf",
-  "aramid-fabrics": "/brochures/artan-protec-brochure.pdf",
-  "technical-fabric-conversions": "/brochures/artan-protec-brochure.pdf",
-  "ppe-frr-products": "/brochures/artan-protec-brochure.pdf",
-  "specialized-aramid-applications": "/brochures/artan-protec-brochure.pdf",
-  "ballistic-uhmwpe": "/brochures/ballistic-systems.pdf",
+const PRODUCT_BROCHURES: Record<string, string> = {
+  "aramid-fibres-yarns": "/brochures/aramid-yarn-thread.pdf",
+  "aramid-sewing-threads": "/brochures/aramid-yarn-thread.pdf",
+  "aramid-fabrics": "/brochures/ppe-fabrics.pdf",
+  "technical-fabric-conversions": "/brochures/ppe-fabrics.pdf",
+  "ppe-frr-products": "/brochures/ppe-fabrics.pdf",
+  "specialized-aramid-applications": "/brochures/ballistic-systems.pdf",
 };
 
-// ---------- Routing ----------
 const PAGES = {
   HOME: "home",
   ABOUT: "about",
@@ -74,10 +89,12 @@ const PAGES = {
   PRODUCTS: "products",
   INDUSTRIES: "industries",
   PRODUCT_DETAIL: "product_detail",
+  SUB_DETAIL: "sub_detail",
   INDUSTRY_DETAIL: "industry_detail",
-};
+} as const;
 
-// ---------- Catalogue (Categories + Subcategories) ----------
+type PageKey = typeof PAGES[keyof typeof PAGES];
+
 const PRODUCT_CATEGORIES = [
   {
     key: "aramid-fibres-yarns",
@@ -115,16 +132,11 @@ const PRODUCT_CATEGORIES = [
     blurb: "Composites reinforcement, insulation felts, aramid paper and more.",
     icon: <Building2 className="w-5 h-5" />,
   },
-  {
-    key: "ballistic-uhmwpe",
-    title: "Ballistic Systems — UHMWPE UD Sheets",
-    blurb:
-      "High‑performance unidirectional (UD) UHMWPE sheets for armor systems.",
-    icon: <Shield className="w-5 h-5" />,
-  },
-];
+] as const;
 
-const PRODUCT_SUBCATS = {
+type ProductKey = typeof PRODUCT_CATEGORIES[number]["key"];
+
+const PRODUCT_SUBCATS: Record<ProductKey, string[]> = {
   "aramid-fibres-yarns": [
     "Meta-aramid staple fibre",
     "Para-aramid staple fibre",
@@ -167,284 +179,123 @@ const PRODUCT_SUBCATS = {
     "Aramid felts for insulation",
     "Aramid paper (for electrical insulation)",
   ],
-  "ballistic-uhmwpe": ["UHMWPE UD sheets (SB/HB class)", "Hard/soft armor layups"],
+};
+
+// realistic example specs for selected sub-products
+const SUB_BENCHMARK_SPECS: Record<string, { k: string; v: string }[]> = {
+  [slugify("Meta-aramid staple fibre")]: [
+    { k: "Polymer", v: "Meta-aramid" },
+    { k: "Cut lengths", v: "38 / 51 mm" },
+    { k: "Fineness", v: "1.5–2.0 dtex" },
+    { k: "LOI", v: ">= 28" },
+    { k: "Thermal", v: "No melt/drip; chars > 370°C" },
+  ],
+  [slugify("Para-aramid staple fibre")]: [
+    { k: "Polymer", v: "Para-aramid" },
+    { k: "Tensile strength", v: "~3.0–3.6 GPa (fiber)" },
+    { k: "Modulus", v: "~60–130 GPa" },
+    { k: "Elongation", v: "~2.5–4%" },
+    { k: "Thermal", v: "Decomposes > 500°C" },
+  ],
+  [slugify("Para-aramid threads for high tensile applications")]: [
+    { k: "Composition", v: "100% para-aramid" },
+    { k: "Tex range", v: "20–200 tex (ticket 20–2)" },
+    { k: "Breaking strength", v: "≥ 60 N (Tex 40), increases with tex" },
+    { k: "Elongation", v: "3.0–4.5%" },
+    { k: "Heat resistance", v: "Service to ~200°C, chars > 450°C" },
+  ],
+  [slugify("Woven meta-aramid fabrics (plain, twill, satin)")]: [
+    { k: "Areal weight", v: "150–260 g/m²" },
+    { k: "Weaves", v: "plain / twill / satin" },
+    { k: "LOI", v: ">= 28 (self‑extinguishing)" },
+    { k: "Tensile (MD/CD)", v: ">= 600 / 400 N @ 200 g/m²" },
+    { k: "Standards", v: "Typically used to meet ISO 15025 A/B once finished" },
+  ],
+  [slugify("Reinforcement fabrics for composites (UHMWPE)")]: [
+    { k: "Form", v: "UD sheets or woven" },
+    { k: "Areal density", v: "120–300 g/m² (UD typical)" },
+    { k: "Use", v: "Soft/hard armor layups; laminates" },
+    { k: "Note", v: "NIJ performance depends on layup design & test plan" },
+  ],
 };
 
 const INDUSTRY_PAGES = [
-  { key: "ppe", title: "PPE", blurb: "Fire & industrial PPE, workwear, uniforms.", icon: <Shield className="w-5 h-5" /> },
-  { key: "defense", title: "Defense & Security", blurb: "Ballistics, FR apparel, high‑temp components.", icon: <Flame className="w-5 h-5" /> },
-  { key: "mobility", title: "Mobility", blurb: "Automotive, rail, aerospace interiors & insulation.", icon: <Factory className="w-5 h-5" /> },
-  { key: "infrastructure", title: "Infrastructure & Energy", blurb: "Renewables, switchgear, substations.", icon: <Building2 className="w-5 h-5" /> },
-  { key: "telecom", title: "Telecom", blurb: "Reinforcement yarns, FR housings & cable ancillaries.", icon: <Globe className="w-5 h-5" /> },
-];
-
-// ---------- i18n (very light) ----------
-const LANGS = [
-  { code: "en", label: "English", dir: "ltr" },
-  { code: "es", label: "Español", dir: "ltr" },
-  { code: "fr", label: "Français", dir: "ltr" },
-  { code: "ar", label: "العربية", dir: "rtl" },
-  { code: "hi", label: "हिंदी", dir: "ltr" },
-];
-
-const T = {
-  en: {
-    title: "Advanced Protection.\nEngineered Performance.",
-    subtitle:
-      "Artan Protec builds high‑performance materials for demanding environments — from aramid yarns & threads and PPE fabrics to ballistic UHMWPE UD sheets.",
-    who: "Who We Are",
-    explore: "Explore Products",
-    viewCatalog: "View Catalog",
-    industriesWeServe: "Industries we serve",
-    scope: "Scope",
-    haveSpec: "Have a spec? Send it across.",
-    contactSales: "Contact Sales",
-    products: "Products",
-    catalog: "Catalog",
-    industries: "Industries",
-    whereWeFit: "Where we fit",
-    company: "Company",
-    about: "About",
-    contact: "Contact",
-    home: "Home",
-    getQuote: "Get Quote",
-    searchProducts: "Search products …",
-    filterAll: "All",
-    contactLeadTitle: "Let’s build together",
-    name: "Name",
-    email: "Email",
-    message: "Tell us about your requirement",
-    attach: "Attach spec (optional)",
-    send: "Send",
-    sentThanks: "Thanks! We’ve received your message.",
-    brochure: "Brochure",
+  {
+    key: "ppe",
+    title: "PPE",
+    blurb: "Fire & industrial PPE, workwear, uniforms.",
+    icon: <Shield className="w-5 h-5" />,
   },
-  es: {
-    title: "Protección avanzada.\nRendimiento diseñado.",
-    subtitle:
-      "Artan Protec fabrica materiales de alto rendimiento para entornos exigentes.",
-    who: "Quiénes somos",
-    explore: "Explorar productos",
-    viewCatalog: "Ver catálogo",
-    industriesWeServe: "Industrias a las que servimos",
-    scope: "Ámbito",
-    haveSpec: "¿Tienes especificaciones? Envíalas.",
-    contactSales: "Contactar ventas",
-    products: "Productos",
-    catalog: "Catálogo",
-    industries: "Industrias",
-    whereWeFit: "Dónde encajamos",
-    company: "Compañía",
-    about: "Acerca de",
-    contact: "Contacto",
-    home: "Inicio",
-    getQuote: "Pedir cotización",
-    searchProducts: "Buscar productos …",
-    filterAll: "Todos",
-    contactLeadTitle: "Construyamos juntos",
-    name: "Nombre",
-    email: "Correo",
-    message: "Cuéntanos tu requerimiento",
-    attach: "Adjuntar especificación (opcional)",
-    send: "Enviar",
-    sentThanks: "¡Gracias! Hemos recibido tu mensaje.",
-    brochure: "Folleto",
+  {
+    key: "defense",
+    title: "Defense & Security",
+    blurb: "Ballistics, FR apparel, high‑temp components.",
+    icon: <Flame className="w-5 h-5" />,
   },
-  fr: {
-    title: "Protection avancée.\nPerformance conçue.",
-    subtitle:
-      "Artan Protec conçoit des matériaux haute performance pour des environnements exigeants.",
-    who: "Qui sommes-nous",
-    explore: "Explorer les produits",
-    viewCatalog: "Voir le catalogue",
-    industriesWeServe: "Secteurs que nous servons",
-    scope: "Portée",
-    haveSpec: "Vous avez un cahier des charges ? Envoyez-le.",
-    contactSales: "Contacter les ventes",
-    products: "Produits",
-    catalog: "Catalogue",
-    industries: "Secteurs",
-    whereWeFit: "Où nous intervenons",
-    company: "Entreprise",
-    about: "À propos",
-    contact: "Contact",
-    home: "Accueil",
-    getQuote: "Demander un devis",
-    searchProducts: "Rechercher des produits …",
-    filterAll: "Tous",
-    contactLeadTitle: "Construisons ensemble",
-    name: "Nom",
-    email: "Email",
-    message: "Parlez-nous de votre besoin",
-    attach: "Joindre un cahier des charges (facultatif)",
-    send: "Envoyer",
-    sentThanks: "Merci ! Nous avons bien reçu votre message.",
-    brochure: "Brochure",
+  {
+    key: "mobility",
+    title: "Mobility",
+    blurb: "Automotive, rail, aerospace interiors & insulation.",
+    icon: <Factory className="w-5 h-5" />,
   },
-  ar: {
-    title: "حماية متقدمة.\nأداء هندسي.",
-    subtitle:
-      "توفر Artan Protec مواد عالية الأداء لبيئات العمل الصعبة.",
-    who: "من نحن",
-    explore: "استكشاف المنتجات",
-    viewCatalog: "عرض الكتالوج",
-    industriesWeServe: "القطاعات التي نخدمها",
-    scope: "النطاق",
-    haveSpec: "لديك المواصفات؟ أرسلها.",
-    contactSales: "تواصل مع المبيعات",
-    products: "المنتجات",
-    catalog: "الكتالوج",
-    industries: "القطاعات",
-    whereWeFit: "مجالات عملنا",
-    company: "الشركة",
-    about: "نبذة",
-    contact: "اتصال",
-    home: "الرئيسية",
-    getQuote: "احصل على عرض",
-    searchProducts: "ابحث في المنتجات …",
-    filterAll: "الكل",
-    contactLeadTitle: "فلننجز معًا",
-    name: "الاسم",
-    email: "البريد الإلكتروني",
-    message: "أخبرنا عن متطلباتك",
-    attach: "أرفق المواصفات (اختياري)",
-    send: "إرسال",
-    sentThanks: "شكرًا! استلمنا رسالتك.",
-    brochure: "كتيّب",
+  {
+    key: "infrastructure",
+    title: "Infrastructure & Energy",
+    blurb: "Renewables, switchgear, substations.",
+    icon: <Building2 className="w-5 h-5" />,
   },
-  hi: {
-    title: "एडवांस्ड प्रोटेक्शन।\nइंजीनियर्ड परफ़ॉर्मेंस।",
-    subtitle:
-      "आर्टन प्रोटेक उच्च‑प्रदर्शन सामग्रियाँ बनाता है — एरामिड यार्न/थ्रेड, PPE फ़ैब्रिक और बैलिस्टिक UHMWPE UD शीट्स।",
-    who: "हम कौन हैं",
-    explore: "उत्पाद देखें",
-    viewCatalog: "कैटलॉग देखें",
-    industriesWeServe: "हम किन उद्योगों को सेवा देते हैं",
-    scope: "दायरा",
-    haveSpec: "कोई स्पेक है? भेजें।",
-    contactSales: "सेल्स से संपर्क करें",
-    products: "उत्पाद",
-    catalog: "कैटलॉग",
-    industries: "उद्योग",
-    whereWeFit: "हम कहाँ फिट होते हैं",
-    company: "कंपनी",
-    about: "हमारे बारे में",
-    contact: "संपर्क",
-    home: "होम",
-    getQuote: "कोट पाएं",
-    searchProducts: "उत्पाद खोजें …",
-    filterAll: "सब",
-    contactLeadTitle: "आइए साथ बनाएँ",
-    name: "नाम",
-    email: "ईमेल",
-    message: "अपनी आवश्यकता बताएं",
-    attach: "स्पेक संलग्न करें (वैकल्पिक)",
-    send: "भेजें",
-    sentThanks: "धन्यवाद! हमें आपका संदेश मिल गया है।",
-    brochure: "ब्रॉशर",
+  {
+    key: "telecom",
+    title: "Telecom",
+    blurb: "Reinforcement yarns, FR housings & cable ancillaries.",
+    icon: <Globe className="w-5 h-5" />,
   },
-};
+] as const;
 
-// Small helper for translations
-function useI18n(lang) {
-  return useMemo(() => T[lang] || T.en, [lang]);
-}
+type IndustryKey = typeof INDUSTRY_PAGES[number]["key"];
 
-// ---------- Meta tags (no external deps) ----------
-function MetaTags({ title, description, keywords }) {
-  useEffect(() => {
-    if (title) document.title = title;
-    const ensure = (name, content) => {
-      if (!content) return;
-      let el = document.querySelector(`meta[name="${name}"]`);
-      if (!el) {
-        el = document.createElement("meta");
-        el.setAttribute("name", name);
-        document.head.appendChild(el);
-      }
-      el.setAttribute("content", content);
-    };
-    ensure("description", description || "High‑performance aramid materials");
-    ensure("keywords", keywords || "aramid, yarn, fabric, UHMWPE, PPE, ballistic");
-  }, [title, description, keywords]);
-  return null;
-}
-
-// ---------- App ----------
 export default function ArtanProtechSite() {
-  const [page, setPage] = useState(PAGES.HOME);
+  const [page, setPage] = useState<PageKey>(PAGES.HOME);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [openDropdown, setOpenDropdown] = useState("");
-  const [selectedProduct, setSelectedProduct] = useState(null);
-  const [selectedIndustry, setSelectedIndustry] = useState(null);
-  const [dark, setDark] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return localStorage.getItem("ap:dark") === "1";
-  });
-  const [lang, setLanguage] = useState(() => {
-    if (typeof window === "undefined") return "en";
-    return localStorage.getItem("ap:lang") || "en";
-  });
+  const [openDropdown, setOpenDropdown] = useState(""); // "products" | "industries"
+  const [selectedProduct, setSelectedProduct] = useState<ProductKey | null>(null);
+  const [selectedSub, setSelectedSub] = useState<string | null>(null);
+  const [selectedIndustry, setSelectedIndustry] = useState<IndustryKey | null>(null);
 
   useEffect(() => {
     setOpenDropdown("");
     setMobileOpen(false);
   }, [page]);
 
-  // Dark mode root class
-  useEffect(() => {
-    const root = document.documentElement;
-    root.classList.toggle("dark", !!dark);
-    localStorage.setItem("ap:dark", dark ? "1" : "0");
-  }, [dark]);
-
-  // Language dir
-  useEffect(() => {
-    const cfg = LANGS.find((l) => l.code === lang) || LANGS[0];
-    document.documentElement.dir = cfg.dir;
-    localStorage.setItem("ap:lang", cfg.code);
-  }, [lang]);
-
-  const t = useI18n(lang);
-  const goToQuote = () => setPage(PAGES.CONTACT);
-
   return (
-    <div className="min-h-screen bg-white text-neutral-900 dark:bg-neutral-900 dark:text-neutral-100 flex flex-col">
-      <MetaTags
-        title="Artan Protec — Advanced Protection, Engineered Performance"
-        description="Aramid yarns & threads, PPE fabrics, ballistic UHMWPE UD sheets."
-      />
-
+    <div className="min-h-screen bg-white text-neutral-900 flex flex-col">
       <Header
-        currentPage={page}
         onNavigate={setPage}
         onOpenDropdown={setOpenDropdown}
         openDropdown={openDropdown}
         setMobileOpen={setMobileOpen}
         mobileOpen={mobileOpen}
-        dark={dark}
-        setDark={setDark}
-        lang={lang}
-        setLanguage={setLanguage}
       />
 
       <main className="flex-1">
         {page === PAGES.HOME && (
           <Home
-            t={t}
             onExplore={() => setOpenDropdown("products")}
             goProducts={() => setPage(PAGES.PRODUCTS)}
+            goProductDetail={(key: ProductKey) => {
+              setSelectedProduct(key);
+              setPage(PAGES.PRODUCT_DETAIL);
+            }}
             goAbout={() => setPage(PAGES.ABOUT)}
             goIndustries={() => setPage(PAGES.INDUSTRIES)}
           />
         )}
 
-        {page === PAGES.ABOUT && <About t={t} />}
-        {page === PAGES.CONTACT && <Contact t={t} />}
+        {page === PAGES.ABOUT && <About />}
+        {page === PAGES.CONTACT && <Contact />}
 
         {page === PAGES.PRODUCTS && (
           <Products
-            t={t}
             onSelect={(key) => {
               setSelectedProduct(key);
               setPage(PAGES.PRODUCT_DETAIL);
@@ -454,7 +305,6 @@ export default function ArtanProtechSite() {
 
         {page === PAGES.INDUSTRIES && (
           <Industries
-            t={t}
             onSelect={(key) => {
               setSelectedIndustry(key);
               setPage(PAGES.INDUSTRY_DETAIL);
@@ -462,48 +312,59 @@ export default function ArtanProtechSite() {
           />
         )}
 
-        {page === PAGES.PRODUCT_DETAIL && (
+        {page === PAGES.PRODUCT_DETAIL && selectedProduct && (
           <ProductDetail
-            t={t}
-            keyId={selectedProduct}
+            keyId={selectedProduct as ProductKey}
             onBack={() => setPage(PAGES.PRODUCTS)}
+            onSelectSub={(name: string) => {
+              setSelectedSub(name);
+              setPage(PAGES.SUB_DETAIL);
+            }}
+          />
+        )}
+
+        {page === PAGES.SUB_DETAIL && selectedProduct && selectedSub && (
+          <SubProductDetail
+            catKey={selectedProduct}
+            subName={selectedSub}
+            onBackToCat={() => setPage(PAGES.PRODUCT_DETAIL)}
           />
         )}
 
         {page === PAGES.INDUSTRY_DETAIL && (
           <IndustryDetail
-            t={t}
-            keyId={selectedIndustry}
+            keyId={selectedIndustry as IndustryKey}
             onBack={() => setPage(PAGES.INDUSTRIES)}
           />
         )}
       </main>
 
-      {page === PAGES.HOME && <StickyQuote t={t} onClick={goToQuote} />}
+      {/* Sticky mailto "Get Quote" on home */}
+      {page === PAGES.HOME && <StickyQuote />}
 
-      <Footer t={t} onNavigate={setPage} />
+      <Footer onNavigate={setPage} />
     </div>
   );
 }
 
-// ---------- Header ----------
 function Header({
-  currentPage,
   onNavigate,
   onOpenDropdown,
   openDropdown,
   mobileOpen,
   setMobileOpen,
-  dark,
-  setDark,
-  lang,
-  setLanguage,
+}: {
+  onNavigate: (k: PageKey) => void;
+  onOpenDropdown: (s: string) => void;
+  openDropdown: string;
+  mobileOpen: boolean;
+  setMobileOpen: (b: boolean) => void;
 }) {
-  const dropdownRef = useRef(null);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    function handleClickOutside(e) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !(dropdownRef.current as any).contains(e.target)) {
         onOpenDropdown("");
       }
     }
@@ -512,7 +373,7 @@ function Header({
   }, [onOpenDropdown]);
 
   return (
-    <header className="sticky top-0 z-40 bg-white/90 dark:bg-neutral-900/70 backdrop-blur border-b border-red-600">
+    <header className="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-red-600">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-3">
@@ -525,59 +386,45 @@ function Header({
               </div>
             )}
             <div className="leading-tight">
-              <div className="font-extrabold tracking-tight text-red-700">Artan Protec</div>
-              <div className="text-xs text-black dark:text-neutral-300">Advanced Protection | Engineered Performance</div>
+              <div className="font-extrabold tracking-tight text-red-700">
+                Artan Protec
+              </div>
+              <div className="text-xs text-black">
+                Advanced Protection | Engineered Performance
+              </div>
             </div>
           </div>
 
           {/* Desktop nav */}
-          <nav className="hidden md:flex items-center gap-1 relative" ref={dropdownRef}>
-            <NavLink onClick={() => onNavigate(PAGES.HOME)} active={currentPage===PAGES.HOME}>
+          <nav
+            className="hidden md:flex items-center gap-1 relative"
+            ref={dropdownRef}
+          >
+            <NavLink onClick={() => onNavigate(PAGES.HOME)}>
               <HomeIcon className="w-4 h-4 mr-1" /> Home
             </NavLink>
             <NavButton
-              onClick={() => onOpenDropdown(openDropdown === "products" ? "" : "products")}
-              active={openDropdown === "products" || currentPage === PAGES.PRODUCTS || currentPage === PAGES.PRODUCT_DETAIL}
+              onClick={() =>
+                onOpenDropdown(openDropdown === "products" ? "" : "products")
+              }
+              active={openDropdown === "products"}
             >
               Products <ChevronDown className="w-4 h-4 ml-1" />
             </NavButton>
             <NavButton
-              onClick={() => onOpenDropdown(openDropdown === "industries" ? "" : "industries")}
-              active={openDropdown === "industries" || currentPage === PAGES.INDUSTRIES || currentPage === PAGES.INDUSTRY_DETAIL}
+              onClick={() =>
+                onOpenDropdown(
+                  openDropdown === "industries" ? "" : "industries"
+                )
+              }
+              active={openDropdown === "industries"}
             >
               Industries <ChevronDown className="w-4 h-4 ml-1" />
             </NavButton>
-            <NavLink onClick={() => onNavigate(PAGES.ABOUT)} active={currentPage===PAGES.ABOUT}>About</NavLink>
-            <NavLink onClick={() => onNavigate(PAGES.CONTACT)} active={currentPage===PAGES.CONTACT}>Contact</NavLink>
-
-            {/* Language */}
-            <div className="ml-2 relative">
-              <select
-                value={lang}
-                onChange={(e) => setLanguage(e.target.value)}
-                className="appearance-none pl-8 pr-3 py-2 rounded-xl border border-red-600 text-sm text-red-700 hover:bg-red-50 dark:border-red-500 dark:bg-neutral-900 dark:text-red-300"
-                aria-label="Select language"
-              >
-                {LANGS.map((l) => (
-                  <option key={l.code} value={l.code}>{l.label}</option>
-                ))}
-              </select>
-              <Languages className="w-4 h-4 absolute left-2 top-1/2 -translate-y-1/2 text-red-700" />
-            </div>
-
-            {/* Dark toggle */}
-            <button
-              className="ml-2 inline-flex items-center gap-2 rounded-xl border border-red-600 px-3 py-2 text-sm text-red-700 hover:bg-red-50 dark:text-red-300"
-              onClick={() => setDark(!dark)}
-              aria-label="Toggle dark mode"
-              title="Toggle dark mode"
-            >
-              {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />} {dark ? "Light" : "Dark"}
-            </button>
-
-            {/* Brochure */}
+            <NavLink onClick={() => onNavigate(PAGES.ABOUT)}>About</NavLink>
+            <NavLink onClick={() => onNavigate(PAGES.CONTACT)}>Contact</NavLink>
             <a
-              className="ml-2 inline-flex items-center gap-2 rounded-xl border border-red-600 px-3 py-2 text-sm text-red-700 hover:bg-red-50 dark:text-red-300"
+              className="ml-2 inline-flex items-center gap-2 rounded-xl border border-red-600 px-3 py-2 text-sm text-red-700 hover:bg-red-50"
               href="/brochures/artan-protec-brochure.pdf"
               target="_blank"
               rel="noopener noreferrer"
@@ -632,15 +479,20 @@ function Header({
 
       {/* Mobile panel */}
       {mobileOpen && (
-        <div className="md:hidden border-t border-red-600 bg-white dark:bg-neutral-900">
+        <div className="md:hidden border-t border-red-600 bg-white">
           <div className="px-4 py-3 space-y-1">
-            <button className="w-full text-left px-2 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-neutral-800" onClick={() => onNavigate(PAGES.HOME)}>Home</button>
+            <button
+              className="w-full text-left px-2 py-2 rounded-lg hover:bg-red-50"
+              onClick={() => onNavigate(PAGES.HOME)}
+            >
+              Home
+            </button>
             <MobileDisclosure label="Products">
               {PRODUCT_CATEGORIES.map((p) => (
                 <button
                   key={p.key}
                   onClick={() => onNavigate(PAGES.PRODUCTS)}
-                  className="flex items-start gap-3 text-left rounded-xl border border-red-200 p-3 hover:bg-red-50 dark:border-neutral-700 dark:hover:bg-neutral-800"
+                  className="flex items-start gap-3 text-left rounded-xl border border-red-200 p-3 hover:bg-red-50"
                 >
                   <div className="mt-1 text-red-700">{p.icon}</div>
                   <div>
@@ -656,7 +508,7 @@ function Header({
                 <button
                   key={i.key}
                   onClick={() => onNavigate(PAGES.INDUSTRIES)}
-                  className="flex items-start gap-3 text-left rounded-xl border border-red-200 p-3 hover:bg-red-50 dark:border-neutral-700 dark:hover:bg-neutral-800"
+                  className="flex items-start gap-3 text-left rounded-xl border border-red-200 p-3 hover:bg-red-50"
                 >
                   <div className="mt-1 text-red-700">{i.icon}</div>
                   <div>
@@ -667,9 +519,26 @@ function Header({
               ))}
             </MobileDisclosure>
 
-            <button className="w-full text-left px-2 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-neutral-800" onClick={() => onNavigate(PAGES.ABOUT)}>About</button>
-            <button className="w-full text-left px-2 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-neutral-800" onClick={() => onNavigate(PAGES.CONTACT)}>Contact</button>
-            <a className="block px-2 py-2 text-red-700" href="/brochures/artan-protec-brochure.pdf" target="_blank" rel="noopener noreferrer">Download Brochure</a>
+            <button
+              className="w-full text-left px-2 py-2 rounded-lg hover:bg-red-50"
+              onClick={() => onNavigate(PAGES.ABOUT)}
+            >
+              About
+            </button>
+            <button
+              className="w-full text-left px-2 py-2 rounded-lg hover:bg-red-50"
+              onClick={() => onNavigate(PAGES.CONTACT)}
+            >
+              Contact
+            </button>
+            <a
+              className="block px-2 py-2 text-red-700"
+              href="/brochures/artan-protec-brochure.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Download Brochure
+            </a>
           </div>
         </div>
       )}
@@ -677,58 +546,55 @@ function Header({
   );
 }
 
-function NavButton({ children, onClick, active }) {
+function NavButton({ children, onClick, active }: any) {
   return (
     <button
       onClick={onClick}
-      className={`inline-flex items-center px-3 py-2 rounded-xl text-sm border transition hover:-translate-y-0.5 hover:shadow ${
+      className={`inline-flex items-center px-3 py-2 rounded-xl text-sm border ${
         active
           ? "bg-red-600 text-white border-red-600"
-          : "border-red-600 text-red-700 hover:bg-red-50 dark:border-red-500 dark:text-red-300"
+          : "border-red-600 text-red-700 hover:bg-red-50"
       }`}
     >
       {children}
     </button>
   );
 }
-function NavLink({ children, onClick, active }) {
+function NavLink({ children, onClick }: any) {
   return (
     <button
       onClick={onClick}
-      className={`px-3 py-2 rounded-xl text-sm transition hover:-translate-y-0.5 hover:shadow ${
-        active
-          ? "bg-red-600 text-white"
-          : "text-red-700 hover:bg-red-50 dark:hover:bg-neutral-800"
-      }`}
-      aria-current={active ? "page" : undefined}
+      className="px-3 py-2 rounded-xl text-sm text-red-700 hover:bg-red-50"
     >
       {children}
     </button>
   );
 }
 
-function MegaDropdown({ title, children }) {
+function MegaDropdown({ title, children }: any) {
   return (
     <div className="absolute left-1/2 -translate-x-1/2 top-[calc(100%+10px)] w-[min(100%,960px)]">
-      <div className="rounded-2xl border border-red-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-xl p-6">
-        <div className="mb-4 text-xs uppercase tracking-wider text-red-600">{title}</div>
+      <div className="rounded-2xl border border-red-200 bg-white shadow-xl p-6">
+        <div className="mb-4 text-xs uppercase tracking-wider text-red-600">
+          {title}
+        </div>
         {children}
       </div>
     </div>
   );
 }
 
-function DropdownCard({ title, blurb, icon, onClick }) {
+function DropdownCard({ title, blurb, icon, onClick }: any) {
   return (
     <button
       onClick={onClick}
-      className="group text-left rounded-2xl border border-red-200 dark:border-neutral-700 p-4 hover:border-red-400 hover:bg-red-50 dark:hover:bg-neutral-800 transition"
+      className="group text-left rounded-2xl border border-red-200 p-4 hover:border-red-400 hover:bg-red-50"
     >
       <div className="flex items-center gap-3">
         <div className="text-red-700">{icon}</div>
         <div className="font-semibold">{title}</div>
       </div>
-      <div className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">{blurb}</div>
+      <div className="mt-2 text-sm text-neutral-600">{blurb}</div>
       <div className="mt-3 inline-flex items-center gap-1 text-sm text-red-700">
         Explore <ChevronRight className="w-4 h-4" />
       </div>
@@ -736,7 +602,7 @@ function DropdownCard({ title, blurb, icon, onClick }) {
   );
 }
 
-function Reveal({ children, delay = 0 }) {
+function Reveal({ children, delay = 0 }: any) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 24 }}
@@ -749,56 +615,55 @@ function Reveal({ children, delay = 0 }) {
   );
 }
 
-// ---------- Section Separator ----------
-function Separator() {
-  return (
-    <div className="relative w-full h-10 overflow-hidden select-none" aria-hidden>
-      <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 10" preserveAspectRatio="none">
-        <path d="M0,10 L100,0 L100,10 Z" fill="#fee2e2" />
-      </svg>
-    </div>
-  );
-}
-
-// ---------- Home ----------
-function Home({ t, onExplore, goProducts, goAbout, goIndustries }) {
+function Home({ onExplore, goProducts, goAbout, goIndustries, goProductDetail }: any) {
+  // Subtle parallax for the hero visual
   const { scrollYProgress } = useScroll();
   const y = useTransform(scrollYProgress, [0, 1], [0, 30]);
-
-  const title = t.title;
-  const [l1, l2 = ""] = title.split("\n");
 
   return (
     <section>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 lg:py-20 grid lg:grid-cols-2 gap-10 items-center">
         <Reveal>
           <h1 className="text-4xl/tight md:text-5xl/tight font-extrabold tracking-tight">
-            {l1}<br />{l2}
+            Advanced Protection.
+            <br />
+            Engineered Performance.
           </h1>
-          <p className="mt-4 text-neutral-700 dark:text-neutral-300 max-w-xl">{t.subtitle}</p>
+          <p className="mt-4 text-neutral-700 max-w-xl">
+            Artan Protec builds high‑performance materials for demanding
+            environments — from aramid yarns & threads and PPE fabrics to
+            ballistic UHMWPE UD sheets. Trusted by OEMs and end‑users across
+            mobility, infrastructure & energy, telecom, and defense.
+          </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <button className="inline-flex items-center gap-2 rounded-xl bg-red-600 text-white px-4 py-3" onClick={onExplore}>
-              {t.explore} <ChevronDown className="w-4 h-4" />
+              Explore Products <ChevronDown className="w-4 h-4" />
             </button>
-            <button onClick={goProducts} className="inline-flex items-center gap-2 rounded-xl border border-red-600 text-red-700 px-4 py-3 hover:bg-red-50 dark:border-red-500 dark:text-red-300">
-              {t.viewCatalog} <ChevronRight className="w-4 h-4" />
+            <button
+              onClick={goProducts}
+              className="inline-flex items-center gap-2 rounded-xl border border-red-600 text-red-700 px-4 py-3 hover:bg-red-50"
+            >
+              View Catalog <ChevronRight className="w-4 h-4" />
             </button>
-            <button onClick={goAbout} className="inline-flex items-center gap-2 rounded-xl border border-red-600 text-red-700 px-4 py-3 hover:bg-red-50 dark:border-red-500 dark:text-red-300">
-              {t.who}
+            <button
+              onClick={goAbout}
+              className="inline-flex items-center gap-2 rounded-xl border border-red-600 text-red-700 px-4 py-3 hover:bg-red-50"
+            >
+              Who We Are
             </button>
           </div>
 
-          {/* Quick stats as mini cards */}
+          {/* Quick stats */}
           <div className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-4">
             {[
               { k: "Design‑led", s: "Materials engineering" },
               { k: "Export‑ready", s: "Global paperwork" },
               { k: "OEM + EPC", s: "Vendor friendly" },
               { k: "QA", s: "Tested performance" },
-            ].map((item, idx) => (
+            ].map((item: any, idx: number) => (
               <Reveal delay={idx * 0.05} key={item.k}>
-                <div className="rounded-xl border border-red-200 dark:border-neutral-700 p-4 hover:shadow transition">
-                  <div className="text-sm text-neutral-500 dark:text-neutral-400">{item.s}</div>
+                <div className="rounded-xl border border-red-200 p-4">
+                  <div className="text-sm text-neutral-500">{item.s}</div>
                   <div className="font-semibold">{item.k}</div>
                 </div>
               </Reveal>
@@ -809,41 +674,49 @@ function Home({ t, onExplore, goProducts, goAbout, goIndustries }) {
         {/* Hero image with subtle parallax */}
         <Reveal>
           <motion.div style={{ y }} className="relative">
-            <img src={HERO_SRC} alt="Artan Protec hero" className="aspect-[4/3] w-full h-auto object-cover rounded-3xl border border-red-200 dark:border-neutral-700" />
-            <div className="absolute -bottom-6 -left-6 w-40 h-40 rounded-3xl overflow-hidden border border-red-200 dark:border-neutral-700 hidden md:block">
+            <img
+              src={HERO_SRC}
+              alt="Artan Protec hero"
+              className="aspect-[4/3] w-full h-auto object-cover rounded-3xl border border-red-200"
+            />
+            <div className="absolute -bottom-6 -left-6 w-40 h-40 rounded-3xl overflow-hidden border border-red-200 hidden md:block">
               <img src={HERO_SRC} alt="Artan Protec secondary" className="w-full h-full object-cover opacity-80" />
             </div>
           </motion.div>
         </Reveal>
       </div>
 
-      <Separator />
-
-      {/* Products strip as cards */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <SectionHeader title={t.products} subtitle={t.catalog} />
+      {/* Products strip */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
         <Reveal>
           <div className="grid md:grid-cols-3 gap-5">
             {PRODUCT_CATEGORIES.map((p, idx) => (
               <Reveal delay={idx * 0.05} key={p.key}>
-                <div className="rounded-2xl border border-red-200 dark:border-neutral-700 hover:border-red-300 p-5 transition hover:-translate-y-0.5 hover:shadow">
+                <div className="rounded-2xl border border-red-200 hover:border-red-300 p-5">
                   <div className="flex items-center gap-3">
                     <div className="text-red-700">{p.icon}</div>
                     <div className="font-semibold">{p.title}</div>
                   </div>
-                  <div className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">{p.blurb}</div>
+                  <div className="mt-2 text-sm text-neutral-600">{p.blurb}</div>
                   <div className="mt-4">
-                    <img src={PRODUCT_IMAGES[p.key] || "/images/placeholder.jpg"} alt={p.title} className="aspect-[4/3] w-full object-cover rounded-xl border border-red-200 dark:border-neutral-700" />
+                    <img
+                      src={PRODUCT_IMAGES[p.key] || "/images/placeholder.jpg"}
+                      alt={p.title}
+                      className="aspect-[4/3] w-full object-cover rounded-xl border border-red-200"
+                    />
                   </div>
-                  <div className="mt-4 flex gap-3">
-                    <a
-                      href={`mailto:artanprotec@gmail.com?subject=${encodeURIComponent("Quote request - " + p.title)}`}
-                      className="inline-flex items-center gap-2 rounded-xl border border-red-600 text-red-700 px-3 py-2 hover:bg-red-50 dark:border-red-500 dark:text-red-300 text-sm"
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <button
+                      className="inline-flex items-center gap-1 text-sm text-red-700"
+                      onClick={() => goProductDetail(p.key)}
                     >
-                      <Mail className="w-4 h-4" /> {t.getQuote}
-                    </a>
-                    <a href="#products" className="inline-flex items-center gap-1 text-sm text-red-700">
                       Learn more <ChevronRight className="w-4 h-4" />
+                    </button>
+                    <a
+                      href={buildQuoteHref(p.title)}
+                      className="inline-flex items-center gap-2 rounded-xl border border-red-600 text-red-700 px-3 py-2 hover:bg-red-50 text-sm"
+                    >
+                      <Mail className="w-4 h-4" /> Get Quote
                     </a>
                   </div>
                 </div>
@@ -853,17 +726,18 @@ function Home({ t, onExplore, goProducts, goAbout, goIndustries }) {
         </Reveal>
       </div>
 
-      <Separator />
-
       {/* Industries band */}
-      <div className="bg-neutral-50 dark:bg-neutral-950 border-y border-red-100 dark:border-neutral-800">
+      <div className="bg-neutral-50 border-y border-red-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-          <SectionHeader title={t.industriesWeServe} subtitle={t.scope} />
+          <SectionHeader title="Industries we serve" subtitle="Scope" />
           <Reveal>
             <div className="flex flex-wrap gap-3">
               {INDUSTRY_PAGES.map((i, idx) => (
                 <Reveal delay={idx * 0.04} key={i.key}>
-                  <button className="px-4 py-2 rounded-full border border-red-200 dark:border-neutral-700 text-sm hover:bg-red-50 dark:hover:bg-neutral-800">
+                  <button
+                    onClick={goIndustries}
+                    className="px-4 py-2 rounded-full border border-red-200 text-sm hover:bg-red-50"
+                  >
                     {i.title}
                   </button>
                 </Reveal>
@@ -873,44 +747,61 @@ function Home({ t, onExplore, goProducts, goAbout, goIndustries }) {
         </div>
       </div>
 
-      <Separator />
-
       {/* Who we are teaser */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid lg:grid-cols-3 gap-6 items-center">
           <Reveal>
-            <div className="lg:col-span-2 rounded-2xl border border-red-200 dark:border-neutral-700 p-6">
-              <div className="text-xs uppercase tracking-widest text-red-700/80">{t.who}</div>
-              <h3 className="mt-2 text-2xl font-extrabold tracking-tight">Engineering materials for protection and performance</h3>
-              <p className="mt-2 text-neutral-700 dark:text-neutral-300">We focus on aramid‑based yarns & threads, PPE fabrics, and UHMWPE UD sheets for ballistic applications. Built for high heat, abrasion, and impact environments — with documentation and export logistics dialed in.</p>
+            <div className="lg:col-span-2 rounded-2xl border border-red-200 p-6">
+              <div className="text-xs uppercase tracking-widest text-red-700/80">
+                Who we are
+              </div>
+              <h3 className="mt-2 text-2xl font-extrabold tracking-tight">
+                Engineering materials for protection and performance
+              </h3>
+              <p className="mt-2 text-neutral-700">
+                We focus on aramid‑based yarns & threads, PPE fabrics, and UHMWPE
+                UD sheets for ballistic applications. Built for high heat,
+                abrasion, and impact environments — with documentation and export
+                logistics dialed in.
+              </p>
               <div className="mt-4">
-                <span className="inline-flex items-center gap-2 text-red-700">
-                  Learn more about Artan Protec <ChevronRight className="w-4 h-4" />
-                </span>
+                <a
+                  onClick={goAbout}
+                  className="inline-flex items-center gap-2 text-red-700 hover:underline cursor-pointer"
+                >
+                  Learn more about Artan Protec
+                  <ChevronRight className="w-4 h-4" />
+                </a>
               </div>
             </div>
           </Reveal>
           <Reveal>
-            <div className="aspect-[4/3] rounded-2xl bg-neutral-100 dark:bg-neutral-800 border border-red-200 dark:border-neutral-700 grid place-items-center">
+            <div className="aspect-[4/3] rounded-2xl bg-neutral-100 border border-red-200 grid place-items-center">
               <span className="text-neutral-500 text-sm">Team / facility visual</span>
             </div>
           </Reveal>
         </div>
       </div>
 
-      <Separator />
-
       {/* CTA band */}
       <div className="bg-black text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid md:grid-cols-2 gap-6 items-center">
           <Reveal>
-            <h3 className="text-2xl font-extrabold tracking-tight">{t.haveSpec}</h3>
-            <p className="mt-2 text-white/80">Share drawings or application details — we’ll respond with feasible constructions, lead times, and MOQs.</p>
+            <h3 className="text-2xl font-extrabold tracking-tight">
+              Have a spec? Send it across.
+            </h3>
+            <p className="mt-2 text-white/80">
+              Share drawings or application details — we’ll respond with
+              feasible constructions, lead times, and MOQs.
+            </p>
           </Reveal>
           <Reveal delay={0.05}>
             <div className="flex md:justify-end">
-              <a href="mailto:artanprotec@gmail.com" className="inline-flex items-center gap-2 rounded-xl bg-red-600 text-white px-4 py-3">
-                {t.contactSales} <Mail className="w-4 h-4" />
+              <a
+                href="mailto:artanprotec@gmail.com"
+                className="inline-flex items-center gap-2 rounded-xl bg-red-600 text-white px-4 py-3"
+              >
+                Contact Sales <Mail className="w-4 h-4" />
               </a>
             </div>
           </Reveal>
@@ -920,65 +811,28 @@ function Home({ t, onExplore, goProducts, goAbout, goIndustries }) {
   );
 }
 
-function SectionHeader({ title, subtitle }) {
+function SectionHeader({ title, subtitle }: { title: string; subtitle: string }) {
   return (
     <div className="mb-8">
-      <div className="text-xs uppercase tracking-widest text-red-700/80">{subtitle}</div>
-      <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight mt-2">{title}</h2>
+      <div className="text-xs uppercase tracking-widest text-red-700/80">
+        {subtitle}
+      </div>
+      <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight mt-2">
+        {title}
+      </h2>
     </div>
   );
 }
 
-// ---------- Products with filters/search ----------
-function Products({ t, onSelect }) {
-  const [q, setQ] = useState("");
-  const [filter, setFilter] = useState("all");
-
-  const filtered = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    return PRODUCT_CATEGORIES.filter((c) => {
-      const inFilter = filter === "all" || c.key === filter;
-      if (!inFilter) return false;
-      if (!needle) return true;
-      const hay = [c.title, c.blurb, ...(PRODUCT_SUBCATS[c.key] || [])]
-        .join(" ")
-        .toLowerCase();
-      return hay.includes(needle);
-    });
-  }, [q, filter]);
-
+function Products({ onSelect }: { onSelect: (k: ProductKey) => void }) {
   return (
-    <section id="products" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <SectionHeader title={t.products} subtitle={t.catalog} />
-
-      {/* Filters/Search UI */}
-      <div className="mb-6 flex flex-wrap gap-3 items-center">
-        <div className="relative">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder={t.searchProducts}
-            className="pl-9 pr-3 py-2 rounded-xl border border-red-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 w-72"
-          />
-        </div>
-        <select
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          className="px-3 py-2 rounded-xl border border-red-300 dark:border-neutral-700 bg-white dark:bg-neutral-900"
-        >
-          <option value="all">{t.filterAll}</option>
-          {PRODUCT_CATEGORIES.map((c) => (
-            <option key={c.key} value={c.key}>{c.title}</option>
-          ))}
-        </select>
-      </div>
-
+    <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <SectionHeader title="Products" subtitle="Catalog" />
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filtered.map((p, idx) => (
+        {PRODUCT_CATEGORIES.map((p, idx) => (
           <motion.div
             key={p.key}
-            className="text-left rounded-2xl border border-red-200 dark:border-neutral-700 hover:border-red-300 p-5 transition hover:-translate-y-0.5 hover:shadow"
+            className="text-left rounded-2xl border border-red-200 hover:border-red-300 p-5"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.2 }}
@@ -988,27 +842,31 @@ function Products({ t, onSelect }) {
               <div className="text-red-700">{p.icon}</div>
               <div className="font-semibold">{p.title}</div>
             </div>
-            <div className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">{p.blurb}</div>
+            <div className="mt-2 text-sm text-neutral-600">{p.blurb}</div>
             <div className="mt-3">
-              <img src={PRODUCT_IMAGES?.[p.key] || "/images/placeholder.jpg"} alt={p.title} className="aspect-[4/3] w-full object-cover rounded-xl border border-red-200 dark:border-neutral-700" />
+              <img
+                src={PRODUCT_IMAGES?.[p.key] || "/images/placeholder.jpg"}
+                alt={p.title}
+                className="aspect-[4/3] w-full object-cover rounded-xl border border-red-200"
+              />
             </div>
-            {/* Subcategories as cards */}
-            <div className="mt-4 grid grid-cols-1 gap-2">
+            <ul className="mt-4 space-y-1 text-sm list-disc pl-5">
               {(PRODUCT_SUBCATS[p.key] || []).map((s) => (
-                <div key={s} className="rounded-xl border border-red-200 dark:border-neutral-700 p-3 text-sm bg-white dark:bg-neutral-900 hover:bg-red-50 dark:hover:bg-neutral-800 transition">
-                  {s}
-                </div>
+                <li key={s} className="text-neutral-700">{s}</li>
               ))}
-            </div>
+            </ul>
             <div className="mt-4 flex flex-wrap gap-2">
-              <button className="inline-flex items-center gap-1 text-sm text-red-700" onClick={() => onSelect(p.key)}>
+              <button
+                className="inline-flex items-center gap-1 text-sm text-red-700"
+                onClick={() => onSelect(p.key)}
+              >
                 Explore <ChevronRight className="w-4 h-4" />
               </button>
               <a
-                href={`mailto:artanprotec@gmail.com?subject=${encodeURIComponent("Quote request - " + p.title)}`}
-                className="inline-flex items-center gap-2 rounded-xl border border-red-600 text-red-700 px-3 py-2 hover:bg-red-50 dark:border-red-500 dark:text-red-300 text-sm"
+                href={buildQuoteHref(p.title)}
+                className="inline-flex items-center gap-2 rounded-xl border border-red-600 text-red-700 px-3 py-2 hover:bg-red-50 text-sm"
               >
-                <Mail className="w-4 h-4" /> {T.en.getQuote}
+                <Mail className="w-4 h-4" /> Get Quote
               </a>
             </div>
           </motion.div>
@@ -1018,16 +876,16 @@ function Products({ t, onSelect }) {
   );
 }
 
-function Industries({ t, onSelect }) {
+function Industries({ onSelect }: { onSelect: (k: IndustryKey) => void }) {
   return (
     <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <SectionHeader title={t.industries} subtitle={t.whereWeFit} />
+      <SectionHeader title="Industries" subtitle="Where we fit" />
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
         {INDUSTRY_PAGES.map((i, idx) => (
           <motion.button
             key={i.key}
             onClick={() => onSelect(i.key)}
-            className="text-left rounded-2xl border border-red-200 dark:border-neutral-700 hover:border-red-300 p-5 transition hover:-translate-y-0.5 hover:shadow"
+            className="text-left rounded-2xl border border-red-200 hover:border-red-300 p-5"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.2 }}
@@ -1037,8 +895,8 @@ function Industries({ t, onSelect }) {
               <div className="text-red-700">{i.icon}</div>
               <div className="font-semibold">{i.title}</div>
             </div>
-            <div className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">{i.blurb}</div>
-            <div className="mt-4 aspect-[4/3] rounded-xl bg-neutral-100 dark:bg-neutral-800 border border-red-200 dark:border-neutral-700 grid place-items-center">
+            <div className="mt-2 text-sm text-neutral-600">{i.blurb}</div>
+            <div className="mt-4 aspect-[4/3] rounded-xl bg-neutral-100 border border-red-200 grid place-items-center">
               <span className="text-neutral-500 text-xs">Industry visual placeholder</span>
             </div>
           </motion.button>
@@ -1048,51 +906,67 @@ function Industries({ t, onSelect }) {
   );
 }
 
-function ProductDetail({ t, keyId, onBack }) {
+function ProductDetail({ keyId, onBack, onSelectSub }: { keyId: ProductKey; onBack: () => void; onSelectSub: (name: string) => void; }) {
   const meta = PRODUCT_CATEGORIES.find((p) => p.key === keyId);
   if (!meta) return null;
   const subs = PRODUCT_SUBCATS[keyId] || [];
 
   return (
     <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <button onClick={onBack} className="text-sm text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 inline-flex items-center gap-1 mb-6">
+      <button
+        onClick={onBack}
+        className="text-sm text-neutral-600 hover:text-neutral-900 inline-flex items-center gap-1 mb-6"
+      >
         <ChevronRight className="-scale-x-100 w-4 h-4" /> Back to Products
       </button>
 
       <h3 className="text-3xl font-extrabold tracking-tight">{meta.title}</h3>
-      <p className="mt-2 text-neutral-700 dark:text-neutral-300">{meta.blurb}</p>
+      <p className="mt-2 text-neutral-700">{meta.blurb}</p>
 
       {/* Gallery */}
       <div className="mt-6 grid md:grid-cols-2 gap-4">
-        <img src={PRODUCT_IMAGES?.[keyId] || "/images/placeholder.jpg"} alt={meta.title} className="aspect-[4/3] w-full object-cover rounded-xl border border-red-200 dark:border-neutral-700" />
+        <img
+          src={PRODUCT_IMAGES?.[keyId] || "/images/placeholder.jpg"}
+          alt={meta.title}
+          className="aspect-[4/3] w-full object-cover rounded-xl border border-red-200"
+        />
         {[2,3,4].map((n) => (
-          <div key={n} className="aspect-[4/3] rounded-xl bg-neutral-100 dark:bg-neutral-800 border border-red-200 dark:border-neutral-700 grid place-items-center">
+          <div key={n} className="aspect-[4/3] rounded-xl bg-neutral-100 border border-red-200 grid place-items-center">
             <span className="text-neutral-500 text-xs">Product visual {n}</span>
           </div>
         ))}
       </div>
 
-      {/* Catalogue items as cards */}
-      <div className="mt-8 rounded-2xl border border-red-200 dark:border-neutral-700 overflow-hidden">
-        <div className="px-4 py-3 bg-red-50 dark:bg-neutral-800 border-b border-red-200 dark:border-neutral-700 text-sm font-medium">Catalogue Items</div>
-        <div className="p-4 grid sm:grid-cols-2 gap-3">
-          {subs.map((s) => (
-            <div key={s} className="rounded-xl border border-red-200 dark:border-neutral-700 p-3 text-sm bg-white dark:bg-neutral-900">{s}</div>
-          ))}
+      {/* Catalogue items */}
+      <div className="mt-8 rounded-2xl border border-red-200 overflow-hidden">
+        <div className="px-4 py-3 bg-red-50 border-b border-red-200 text-sm font-medium">
+          Catalogue Items
+        </div>
+        <div className="p-4">
+          <ul className="list-disc pl-5 text-neutral-700 space-y-1">
+            {subs.map((s) => (
+              <li key={s}>
+                <button className="text-red-700 hover:underline" onClick={() => onSelectSub(s)}>{s}</button>
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
 
       {/* CTA row */}
       <div className="mt-6 flex flex-wrap gap-3">
         <a
-          href={PRODUCT_BROCHURES?.[keyId] || "/brochures/artan-protec-brochure.pdf"}
+          href={PRODUCT_BROCHURES?.[keyId] || "#"}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-2 rounded-xl bg-black text-white px-4 py-3"
         >
           <Download className="w-4 h-4" /> Download Catalogue
         </a>
-        <a href="mailto:artanprotec@gmail.com" className="inline-flex items-center gap-2 rounded-xl border border-red-600 text-red-700 px-4 py-3 hover:bg-red-50 dark:border-red-500 dark:text-red-300">
+        <a
+          href="mailto:artanprotec@gmail.com"
+          className="inline-flex items-center gap-2 rounded-xl border border-red-600 text-red-700 px-4 py-3 hover:bg-red-50"
+        >
           <Mail className="w-4 h-4" /> Enquire
         </a>
       </div>
@@ -1100,28 +974,83 @@ function ProductDetail({ t, keyId, onBack }) {
   );
 }
 
-function IndustryDetail({ t, keyId, onBack }) {
+function SubProductDetail({ catKey, subName, onBackToCat }: { catKey: ProductKey; subName: string; onBackToCat: () => void; }) {
+  const specs = SUB_BENCHMARK_SPECS[slugify(subName)] || [];
+  const cat = PRODUCT_CATEGORIES.find((c) => c.key === catKey);
+  return (
+    <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <button
+        onClick={onBackToCat}
+        className="text-sm text-neutral-600 hover:text-neutral-900 inline-flex items-center gap-1 mb-6"
+      >
+        <ChevronRight className="-scale-x-100 w-4 h-4" /> Back to {cat?.title}
+      </button>
+
+      <h3 className="text-2xl font-extrabold tracking-tight">{subName}</h3>
+      <p className="mt-2 text-neutral-700">Representative benchmark specifications (typical industry values).</p>
+
+      <div className="mt-6 rounded-2xl border border-red-200 overflow-hidden">
+        <div className="px-4 py-3 bg-red-50 border-b border-red-200 text-sm font-medium">Technical Specifications</div>
+        <div className="p-4">
+          {specs.length ? (
+            <table className="w-full text-sm">
+              <tbody>
+                {specs.map((row) => (
+                  <tr key={row.k} className="border-b last:border-0">
+                    <td className="py-2 pr-3 font-medium text-neutral-800">{row.k}</td>
+                    <td className="py-2 text-neutral-700">{row.v}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="text-neutral-600">Add specific data for this item to replace the generic example.</div>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-6 flex flex-wrap gap-3">
+        <a
+          href={buildQuoteHref(cat?.title || "Product", subName)}
+          className="inline-flex items-center gap-2 rounded-xl bg-black text-white px-4 py-3"
+        >
+          <Mail className="w-4 h-4" /> Request Quote
+        </a>
+      </div>
+    </section>
+  );
+}
+
+function IndustryDetail({ keyId, onBack }: { keyId: IndustryKey; onBack: () => void }) {
   const meta = INDUSTRY_PAGES.find((i) => i.key === keyId);
   if (!meta) return null;
   return (
     <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <button onClick={onBack} className="text-sm text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 inline-flex items-center gap-1 mb-6">
+      <button
+        onClick={onBack}
+        className="text-sm text-neutral-600 hover:text-neutral-900 inline-flex items-center gap-1 mb-6"
+      >
         <ChevronRight className="-scale-x-100 w-4 h-4" /> Back to Industries
       </button>
       <h3 className="text-3xl font-extrabold tracking-tight">{meta.title}</h3>
-      <p className="mt-2 text-neutral-700 dark:text-neutral-300">{meta.blurb}</p>
+      <p className="mt-2 text-neutral-700">{meta.blurb}</p>
 
       <div className="mt-6 grid md:grid-cols-2 gap-4">
         {[1, 2, 3, 4].map((n) => (
-          <div key={n} className="aspect-[4/3] rounded-xl bg-neutral-100 dark:bg-neutral-800 border border-red-200 dark:border-neutral-700 grid place-items-center">
+          <div
+            key={n}
+            className="aspect-[4/3] rounded-xl bg-neutral-100 border border-red-200 grid place-items-center"
+          >
             <span className="text-neutral-500 text-xs">Use‑case visual {n}</span>
           </div>
         ))}
       </div>
 
-      <div className="mt-8 rounded-2xl border border-red-200 dark:border-neutral-700 overflow-hidden">
-        <div className="px-4 py-3 bg-red-50 dark:bg-neutral-800 border-b border-red-200 dark:border-neutral-700 text-sm font-medium">Common Applications</div>
-        <div className="p-4 grid md:grid-cols-2 gap-3 text-neutral-700 dark:text-neutral-300">
+      <div className="mt-8 rounded-2xl border border-red-200 overflow-hidden">
+        <div className="px-4 py-3 bg-red-50 border-b border-red-200 text-sm font-medium">
+          Common Applications
+        </div>
+        <div className="p-4 grid md:grid-cols-2 gap-3 text-neutral-700">
           <ul className="list-disc pl-5 space-y-1">
             <li>OEM components & spares</li>
             <li>Maintenance, repair & overhaul (MRO)</li>
@@ -1136,151 +1065,206 @@ function IndustryDetail({ t, keyId, onBack }) {
       </div>
 
       <div className="mt-6 flex flex-wrap gap-3">
-        <a href={`/brochures/industry-${keyId}.pdf`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-xl bg-black text-white px-4 py-3">
-          <Download className="w-4 h-4" /> Industry One‑pager
+        <a
+          href={`/brochures/industry-${keyId}.pdf`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 rounded-xl bg-black text-white px-4 py-3"
+        >
+          <Download className="w-4 h-4" />Industry One‑pager
         </a>
-        <a href="mailto:artanprotec@gmail.com" className="inline-flex items-center gap-2 rounded-xl border border-red-600 text-red-700 px-4 py-3 hover:bg-red-50 dark:border-red-500 dark:text-red-300">
-          <Mail className="w-4 h-4" /> Talk to Sales
+        <a
+          href="mailto:artanprotec@gmail.com"
+          className="inline-flex items-center gap-2 rounded-xl border border-red-600 text-red-700 px-4 py-3 hover:bg-red-50"
+        >
+          <Mail className="w-4 h-4" />Talk to Sales
         </a>
       </div>
     </section>
   );
 }
 
-// ---------- About ----------
-function About({ t }) {
+function About() {
   return (
     <section className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <SectionHeader title={`About Artan Protec`} subtitle="Company" />
-      <p className="text-neutral-700 dark:text-neutral-300 leading-relaxed">
-        Artan Protec designs and delivers high‑performance materials for harsh environments. Our portfolio spans aramid yarns & threads, PPE fabrics, and UHMWPE UD sheets for ballistic applications. We combine precise engineering with reliable execution to help OEMs, EPCs, and end‑users meet demanding performance, safety, and compliance requirements.
+      <SectionHeader title="About Artan Protec" subtitle="Company" />
+      <p className="text-neutral-700 leading-relaxed">
+        Artan Protec designs and delivers high‑performance materials for harsh
+        environments. Our portfolio spans aramid yarns & threads, PPE fabrics,
+        and UHMWPE UD sheets for ballistic applications. We combine precise
+        engineering with reliable execution to help OEMs, EPCs, and end‑users
+        meet demanding performance, safety, and compliance requirements.
       </p>
 
       <div className="mt-8 grid md:grid-cols-3 gap-4">
-        {["Design & Development", "Manufacturing & QA", "Export Logistics"].map((k) => (
-          <div key={k} className="rounded-xl border border-red-200 dark:border-neutral-700 p-4 hover:shadow transition">
-            <div className="text-sm text-neutral-500 dark:text-neutral-400">Capability</div>
-            <div className="font-semibold">{k}</div>
-            <div className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">Short descriptive copy placeholder. Add your certifications and references.</div>
-          </div>
-        ))}
+        {["Design & Development", "Manufacturing & QA", "Export Logistics"].map(
+          (k) => (
+            <div key={k} className="rounded-xl border border-red-200 p-4">
+              <div className="text-sm text-neutral-500">Capability</div>
+              <div className="font-semibold">{k}</div>
+              <div className="mt-2 text-sm text-neutral-600">
+                Short descriptive copy placeholder. Add your certifications and
+                references.
+              </div>
+            </div>
+          )
+        )}
       </div>
 
-      <div className="mt-8 aspect-[5/2] rounded-2xl bg-neutral-100 dark:bg-neutral-800 border border-red-200 dark:border-neutral-700 grid place-items-center">
+      <div className="mt-8 aspect-[5/2] rounded-2xl bg-neutral-100 border border-red-200 grid place-items-center">
         <span className="text-neutral-500 text-sm">Team / facility photo placeholder</span>
       </div>
     </section>
   );
 }
 
-// ---------- Contact (Netlify form + inline confirmation + upload) ----------
-function Contact({ t }) {
-  const [sent, setSent] = useState(false);
-
+function Contact() {
   return (
     <section className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <SectionHeader title={t.contact} subtitle={t.contactLeadTitle} />
-      {!sent ? (
-        <form
-          name="contact"
-          method="POST"
-          data-netlify="true"
-          netlify-honeypot="bot-field"
-          onSubmit={() => setSent(true)}
-          className="rounded-2xl border border-red-200 dark:border-neutral-700 p-6"
-        >
-          {/* Netlify requires these */}
-          <input type="hidden" name="form-name" value="contact" />
-          <p className="hidden">
-            <label>
-              Don’t fill this out: <input name="bot-field" />
-            </label>
-          </p>
-
-          <div className="grid md:grid-cols-2 gap-6">
-            <div>
-              <div className="text-sm text-neutral-500 dark:text-neutral-400">{t.email}</div>
-              <a className="font-medium" href="mailto:artanprotec@gmail.com">artanprotec@gmail.com</a>
-              <div className="mt-4 text-sm text-neutral-500 dark:text-neutral-400">Phone</div>
-              <a className="font-medium" href="tel:+14704450578">+1 (470) 445‑0578</a>
-              <div className="mt-4 text-sm text-neutral-500 dark:text-neutral-400">HQ</div>
-              <div className="font-medium">Mumbai, India</div>
-            </div>
-
-            <div className="grid gap-3">
-              <input className="border border-red-300 dark:border-neutral-700 rounded-xl px-3 py-2" name="name" placeholder={t.name} required />
-              <input className="border border-red-300 dark:border-neutral-700 rounded-xl px-3 py-2" type="email" name="email" placeholder={t.email} required />
-              <textarea className="border border-red-300 dark:border-neutral-700 rounded-xl px-3 py-2 min-h-[100px]" name="message" placeholder={t.message} required />
-              <div>
-                <label className="text-sm text-neutral-600 dark:text-neutral-300 block mb-1">{t.attach}</label>
-                <input className="block" type="file" name="attachment" />
-              </div>
-              <button type="submit" className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 text-white px-4 py-3">
-                <Mail className="w-4 h-4" /> {t.send}
-              </button>
-            </div>
+      <SectionHeader title="Contact" subtitle="Let’s build together" />
+      <div className="rounded-2xl border border-red-200 p-6">
+        <div className="grid md:grid-cols-2 gap-6">
+          <div>
+            <div className="text-sm text-neutral-500">Email</div>
+            <a className="font-medium" href="mailto:artanprotec@gmail.com">
+              artanprotec@gmail.com
+            </a>
+            <div className="mt-4 text-sm text-neutral-500">Phone</div>
+            <a className="font-medium" href="tel:+14704450578">
+              +1 (470) 445‑0578
+            </a>
+            <div className="mt-4 text-sm text-neutral-500">HQ</div>
+            <div className="font-medium">Mumbai, India</div>
           </div>
-        </form>
-      ) : (
-        <div className="rounded-2xl border border-green-300 bg-green-50 text-green-900 p-6">
-          {t.sentThanks}
+
+          {/* Netlify static form */}
+          <form
+            name="contact"
+            method="POST"
+            data-netlify="true"
+            netlify-honeypot="bot-field"
+            className="grid gap-3"
+          >
+            <input type="hidden" name="form-name" value="contact" />
+            <p className="hidden">
+              <label>
+                Don’t fill this out: <input name="bot-field" />
+              </label>
+            </p>
+            <input
+              className="border border-red-300 rounded-xl px-3 py-2"
+              placeholder="Name"
+              name="name"
+              required
+            />
+            <input
+              className="border border-red-300 rounded-xl px-3 py-2"
+              placeholder="Email"
+              type="email"
+              name="email"
+              required
+            />
+            <textarea
+              className="border border-red-300 rounded-xl px-3 py-2 min-h-[100px]"
+              placeholder="Tell us about your requirement"
+              name="message"
+              required
+            />
+            <button
+              type="submit"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 text-white px-4 py-3"
+            >
+              <Mail className="w-4 h-4" /> Send
+            </button>
+          </form>
         </div>
-      )}
+      </div>
     </section>
   );
 }
 
-function StickyQuote({ t, onClick }) {
+function StickyQuote() {
   return (
-    <button onClick={onClick} className="fixed bottom-6 right-6 z-50 inline-flex items-center gap-2 rounded-full bg-red-600 text-white px-5 py-3 shadow-lg hover:brightness-110" aria-label="Get Quote">
-      <Mail className="w-4 h-4" /> {t.getQuote}
-    </button>
+    <a
+      href={buildQuoteHref("Artan Protec")}
+      className="fixed bottom-6 right-6 z-50 inline-flex items-center gap-2 rounded-full bg-red-600 text-white px-5 py-3 shadow-lg hover:brightness-110"
+      aria-label="Get Quote"
+    >
+      <Mail className="w-4 h-4" /> Get Quote
+    </a>
   );
 }
 
-// ---------- Footer ----------
-function Footer({ t, onNavigate }) {
+function Footer({ onNavigate }: { onNavigate: (k: PageKey) => void }) {
   return (
-    <footer className="mt-10 border-t border-red-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950">
+    <footer className="mt-10 border-t border-red-200 bg-neutral-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="grid md:grid-cols-4 gap-8">
           <div>
             <div className="font-extrabold tracking-tight">Artan Protec</div>
-            <div className="text-xs text-neutral-500 dark:text-neutral-400">Advanced Protection | Engineered Performance</div>
-            <div className="mt-4 text-sm text-neutral-700 dark:text-neutral-300">High‑performance materials for PPE, mobility, infrastructure, telecom, and defense.</div>
+            <div className="text-xs text-neutral-500">
+              Advanced Protection | Engineered Performance
+            </div>
+            <div className="mt-4 text-sm text-neutral-700">
+              High‑performance materials for PPE, mobility, infrastructure,
+              telecom, and defense.
+            </div>
           </div>
 
-          <FooterCol title={t.products}>
+          <FooterCol title="Products">
             {PRODUCT_CATEGORIES.map((p) => (
-              <FooterLink key={p.key} onClick={() => onNavigate(PAGES.PRODUCTS)}>
+              <FooterLink
+                key={p.key}
+                onClick={() => onNavigate(PAGES.PRODUCTS)}
+              >
                 {p.title}
               </FooterLink>
             ))}
           </FooterCol>
 
-          <FooterCol title={t.industries}>
+          <FooterCol title="Industries">
             {INDUSTRY_PAGES.map((i) => (
-              <FooterLink key={i.key} onClick={() => onNavigate(PAGES.INDUSTRIES)}>
+              <FooterLink
+                key={i.key}
+                onClick={() => onNavigate(PAGES.INDUSTRIES)}
+              >
                 {i.title}
               </FooterLink>
             ))}
           </FooterCol>
 
-          <FooterCol title={t.company}>
-            <FooterLink onClick={() => onNavigate(PAGES.HOME)}>{t.home}</FooterLink>
-            <FooterLink onClick={() => onNavigate(PAGES.ABOUT)}>{t.about}</FooterLink>
-            <FooterLink onClick={() => onNavigate(PAGES.CONTACT)}>{t.contact}</FooterLink>
-            <a href="/brochures/artan-protec-brochure.pdf" target="_blank" rel="noopener noreferrer" className="block text-sm text-red-700 hover:text-red-800">
-              {t.brochure}
+          <FooterCol title="Company">
+            <FooterLink onClick={() => onNavigate(PAGES.HOME)}>
+              Home
+            </FooterLink>
+            <FooterLink onClick={() => onNavigate(PAGES.ABOUT)}>
+              About
+            </FooterLink>
+            <FooterLink onClick={() => onNavigate(PAGES.CONTACT)}>
+              Contact
+            </FooterLink>
+            <a
+              href="/brochures/artan-protec-brochure.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block text-sm text-red-700 hover:text-red-800"
+            >
+              Download Brochure
             </a>
           </FooterCol>
         </div>
 
-        <div className="mt-8 pt-6 border-t border-red-200 dark:border-neutral-800 text-xs text-neutral-500 dark:text-neutral-400 flex flex-wrap items-center justify-between gap-2">
-          <div>© {new Date().getFullYear()} Artan Protec. All rights reserved.</div>
+        <div className="mt-8 pt-6 border-t border-red-200 text-xs text-neutral-500 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            © {new Date().getFullYear()} Artan Protec. All rights reserved.
+          </div>
           <div className="flex items-center gap-4">
-            <a href="#" onClick={(e) => e.preventDefault()} className="hover:text-neutral-900 dark:hover:text-white">Privacy</a>
-            <a href="#" onClick={(e) => e.preventDefault()} className="hover:text-neutral-900 dark:hover:text-white">Terms</a>
+            <a href="#" onClick={(e) => e.preventDefault()} className="hover:text-neutral-900">
+              Privacy
+            </a>
+            <a href="#" onClick={(e) => e.preventDefault()} className="hover:text-neutral-900">
+              Terms
+            </a>
           </div>
         </div>
       </div>
@@ -1288,7 +1272,7 @@ function Footer({ t, onNavigate }) {
   );
 }
 
-function FooterCol({ title, children }) {
+function FooterCol({ title, children }: any) {
   return (
     <div>
       <div className="text-sm font-semibold">{title}</div>
@@ -1296,23 +1280,44 @@ function FooterCol({ title, children }) {
     </div>
   );
 }
-function FooterLink({ children, onClick }) {
+function FooterLink({ children, onClick }: any) {
   return (
-    <button onClick={onClick} className="block text-sm text-neutral-700 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white">
+    <button
+      onClick={onClick}
+      className="block text-sm text-neutral-700 hover:text-neutral-900"
+    >
       {children}
     </button>
   );
 }
 
-function MobileDisclosure({ label, children }) {
+function MobileDisclosure({ label, children }: any) {
   const [open, setOpen] = useState(false);
   return (
     <div>
-      <button onClick={() => setOpen(!open)} className="w-full inline-flex items-center justify-between px-2 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-neutral-800">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full inline-flex items-center justify-between px-2 py-2 rounded-lg hover:bg-red-50"
+      >
         <span>{label}</span>
-        <ChevronDown className={`w-4 h-4 transition-transform ${open ? "rotate-180" : ""}`} />
+        <ChevronDown
+          className={`w-4 h-4 transition-transform ${open ? "rotate-180" : ""}`}
+        />
       </button>
       {open && <div className="px-2 pb-3 space-y-2">{children}</div>}
     </div>
   );
+}
+
+// ---- Dev smoke tests (won't break UI; visible in console only) ----
+if (typeof window !== "undefined") {
+  try {
+    const href = buildQuoteHref("Foo", "Bar");
+    console.assert(href.startsWith("mailto:"), "buildQuoteHref returns mailto:");
+    console.assert(href.includes(encodeURIComponent("Quote request - Foo")), "subject encoded");
+    console.assert(href.includes("%0A"), "newline encoded via join(\\n)");
+    console.assert(slugify("Meta-aramid staple fibre") === "meta-aramid-staple-fibre", "slugify basic");
+  } catch (_) {
+    // no-op in production
+  }
 }
