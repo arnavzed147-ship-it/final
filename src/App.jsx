@@ -96,8 +96,8 @@ const PAGES = {
 const PRODUCT_CATEGORIES = [
   {
     key: "aramid-fibres-yarns",
-    title: "Aramid Fibres & Yarns",
-    blurb: "Meta & para aramid fibres and yarns for technical textiles.",
+    title: "Aramid Yarns",
+    blurb: "Meta & para aramid yarns for technical textiles.",
     icon: <Layers className="w-5 h-5" />,
   },
   {
