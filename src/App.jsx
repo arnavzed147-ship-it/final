@@ -80,7 +80,7 @@ const PRODUCT_IMAGES = {
   "aramid-fabrics": "/images/ppe-fabrics.jpg",
   "technical-fabric-conversions": "/images/ppe-fabrics.jpg",
   "ppe-frr-products": "/images/ppe-fabrics.jpg",
-  "specialized-aramid-applications": "/images/ballistic.jpg",
+  "specialized-applications": "/images/ballistic.jpg",
 };
 
 const PRODUCT_BROCHURES = {
@@ -89,7 +89,7 @@ const PRODUCT_BROCHURES = {
   "aramid-fabrics": "/brochures/ppe-fabrics.pdf",
   "technical-fabric-conversions": "/brochures/ppe-fabrics.pdf",
   "ppe-frr-products": "/brochures/ppe-fabrics.pdf",
-  "specialized-aramid-applications": "/brochures/ballistic-systems.pdf",
+  "specialized-applications": "/brochures/ballistic-systems.pdf",
 };
 
 const PRODUCT_CATEGORIES = [
@@ -129,8 +129,8 @@ const PRODUCT_CATEGORIES = [
     tags: ["ppe", "arc flash", "gloves", "shells"],
   },
   {
-    key: "specialized-aramid-applications",
-    title: "Specialized Aramid Applications",
+    key: "specialized-applications",
+    title: "Specialized Applications",
     blurb: "Composites reinforcement, insulation felts, aramid paper and more.",
     icon: <Building2 className="w-5 h-5" />,
     tags: ["composites", "aramid paper", "insulation", "uhmwpe"],
@@ -174,7 +174,7 @@ const PRODUCT_SUBCATS = {
     "Heat-resistant gloves & mitt fabrics",
     "Industrial PPE outer shells (jackets, coveralls)",
   ],
-  "specialized-aramid-applications": [
+  "specialized-applications": [
     "Reinforcement fabrics for composites (UHMWPE)",
     "High-temp conveyor belts (aramid core)",
     "Aramid felts for insulation",
