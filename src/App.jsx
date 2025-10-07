@@ -1,9 +1,3 @@
-// NOTE: Some spec lines were informed by your PDFs.
-// Sources (kept as comments to avoid rendering on page):
-// Soft/Hard UD sheet model patterns and ranges: :contentReference[oaicite:0]{index=0} :contentReference[oaicite:1]{index=1}
-// Example weights/series & use cases for soft: :contentReference[oaicite:2]{index=2}
-// Example spec headings for aramid FR fabrics & linings: :contentReference[oaicite:3]{index=3} :contentReference[oaicite:4]{index=4}
-
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
@@ -27,26 +21,22 @@ import {
 } from "lucide-react";
 
 /**
- * Artan Protec — Coats-inspired site (single file)
+ * Artan Protec — Coats-inspired single-file site
  * TailwindCSS + Framer Motion + hash routing
  * Theme: Red / Black / White (light)
- * Pages: Home, Products (facets), PDP, Industries, Industry Detail, About, Insights (Info Hub), Contact
- * Notes:
- *  - Drop assets in /public (logo: /artan-protec-logo.png, hero: /hero.jpg)
- *  - Replace PRODUCT_DB & INDUSTRY_DB with live content later.
  */
 
 const LOGO_SRC = "/artan-protec-logo.png";
 const HERO_SRC = "/hero.jpg";
 
 // ---------------- utils ----------------
-const slugify = (s: string) =>
+const slugify = (s) =>
   String(s || "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
 
-const buildQuoteHref = (title: string, item?: string) => {
+const buildQuoteHref = (title, item) => {
   const body = [
     "Hello Artan Protec,",
     "",
@@ -59,42 +49,48 @@ const buildQuoteHref = (title: string, item?: string) => {
   ]
     .filter(Boolean)
     .join("\n");
+
   if (typeof window !== "undefined") {
-    (window as any).dataLayer = (window as any).dataLayer || [];
-    (window as any).dataLayer.push({ event: "quote_click", title, item: item || null });
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push({ event: "quote_click", title, item: item || null });
   }
+
   return `mailto:artanprotec@gmail.com?subject=${encodeURIComponent(
     "Quote request - " + title
   )}&body=${encodeURIComponent(body)}`;
 };
+
 const safeImg = { loading: "lazy", decoding: "async" };
 
 // --------------- routing (hash) ---------------
 const R = {
   HOME: "#/",
   PRODUCTS: "#/products",
-  PDP: (slug: string) => `#/products/${slug}`,
+  PDP: (slug) => `#/products/${slug}`,
   INDUSTRIES: "#/industries",
-  INDUSTRY: (slug: string) => `#/industries/${slug}`,
+  INDUSTRY: (slug) => `#/industries/${slug}`,
   ABOUT: "#/about",
   INSIGHTS: "#/insights",
   CONTACT: "#/contact",
 };
+
 function parseHash() {
   const seg = (typeof window !== "undefined" ? window.location.hash : "#/")
     .replace(/^#\//, "")
     .split("/")
     .filter(Boolean);
-  if (seg.length === 0) return { page: "home" as const };
-  if (seg[0] === "products" && seg.length === 1) return { page: "products" as const };
-  if (seg[0] === "products" && seg[1]) return { page: "pdp" as const, product: seg[1] };
-  if (seg[0] === "industries" && seg.length === 1) return { page: "industries" as const };
-  if (seg[0] === "industries" && seg[1]) return { page: "industry" as const, industry: seg[1] };
-  if (seg[0] === "about") return { page: "about" as const };
-  if (seg[0] === "insights") return { page: "insights" as const };
-  if (seg[0] === "contact") return { page: "contact" as const };
-  return { page: "home" as const };
+
+  if (seg.length === 0) return { page: "home" };
+  if (seg[0] === "products" && seg.length === 1) return { page: "products" };
+  if (seg[0] === "products" && seg[1]) return { page: "pdp", product: seg[1] };
+  if (seg[0] === "industries" && seg.length === 1) return { page: "industries" };
+  if (seg[0] === "industries" && seg[1]) return { page: "industry", industry: seg[1] };
+  if (seg[0] === "about") return { page: "about" };
+  if (seg[0] === "insights") return { page: "insights" };
+  if (seg[0] === "contact") return { page: "contact" };
+  return { page: "home" };
 }
+
 function useHashRouter() {
   const [route, setRoute] = useState(parseHash());
   useEffect(() => {
@@ -102,7 +98,7 @@ function useHashRouter() {
     window.addEventListener("hashchange", h);
     return () => window.removeEventListener("hashchange", h);
   }, []);
-  const go = (hash: string) => {
+  const go = (hash) => {
     if (window.location.hash !== hash) window.location.hash = hash;
     else setRoute(parseHash());
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -110,31 +106,8 @@ function useHashRouter() {
   return { route, go };
 }
 
-// --------------- data model (Coats-style taxonomy) ---------------
-// Brands / families — updated (no 'Arvex'):
-//  - ArmorStitch™ (aramid sewing threads)
-//  - RipCore™ (telecom ripcord yarns)
-//  - CoreStrand™ (strength members / braids)  // placeholder for future
-//  - MetaSpin™ (meta-aramid staple yarns)
-//  - ParaSpin™ (para-aramid staple yarns)
-//  - ShieldLite™ (UHMWPE UD sheets)
-//  - Thermaguard™ (FR fabrics, linings & laminates)
-
-type Product = {
-  slug: string;
-  title: string;
-  summary: string;
-  hero: string;
-  tags?: string[];
-  facets?: { substrate?: string[]; feature?: string[]; industry?: string[] };
-  bullets: string[];
-  specs: [string, string][];
-  usecases: string[];
-  downloads: { label: string; href: string }[];
-};
-
-const PRODUCT_DB: Product[] = [
-  // —— UHMWPE UD Sheets ——
+// ---------------- sample product & industry data ----------------
+const PRODUCT_DB = [
   {
     slug: "shieldlite-soft-ud",
     title: "ShieldLite™ Soft Armour UD Sheets (APS Series)",
@@ -144,19 +117,16 @@ const PRODUCT_DB: Product[] = [
     tags: ["UHMWPE", "UD", "soft-armor"],
     facets: { substrate: ["UHMWPE"], feature: ["high-tenacity"], industry: ["defense", "mobility"] },
     bullets: [
-      "APS series: APS120–APS300 where the number ≈ gsm per ply",
-      "Nominal 0°/90° layup (multi-ax options on request)",
-      "Stable resin content for uniform panel consolidation",
+      "APS series: APS120–APS300 (gsm per ply)",
+      "Stable resin content for uniform layups",
+      "Nominal 0°/90° orientation",
     ],
     specs: [
       ["Series codes", "APS120, APS150, APS200, APS240, APS300"],
       ["Fiber", "UHMWPE"],
-      ["Ply orientation", "0°/90° (typical)"],
-      ["Roll width", "Up to ~1.5 m (typical)"],
-      ["Areal density per ply", "120–300 g/m²"],
-      ["Note", "Ballistic results depend on layup schedule & test plan"],
+      ["Roll width", "Up to 1.5 m"],
     ],
-    usecases: ["Soft armor vests/panels", "Helmet preform layers", "Blast/fragment blankets"],
+    usecases: ["Soft armor vests", "Helmet preforms", "Blast blankets"],
     downloads: [{ label: "Ballistics Overview", href: "/brochures/ballistic-systems.pdf" }],
   },
   {
@@ -168,230 +138,21 @@ const PRODUCT_DB: Product[] = [
     tags: ["UHMWPE", "UD", "hard-armor"],
     facets: { substrate: ["UHMWPE"], feature: ["high-tenacity"], industry: ["defense", "mobility"] },
     bullets: [
-      "APH series: APH150–APH300 (≈ gsm per ply)",
-      "Designed for press consolidation; flat or tooled curvature",
-      "Consistent resin films for low void content",
+      "APH series: APH150–APH300 (gsm per ply)",
+      "Press consolidation-ready surface finish",
+      "Supports complex curvature tooling",
     ],
     specs: [
       ["Series codes", "APH150, APH200, APH250, APH300"],
-      ["Process", "Hot press (temp/time/pressure per program)"],
-      ["Panel formats", "Flat; curvature via tool"],
       ["Fiber", "UHMWPE"],
-      ["Note", "Performance depends on layup & ceramic/backer if any"],
+      ["Format", "Flat / tooled curvature"],
     ],
-    usecases: ["Hard armor plates", "Vehicle armor kits", "Composite laminates"],
+    usecases: ["Hard armor plates", "Vehicle armor panels"],
     downloads: [{ label: "Ballistics Overview", href: "/brochures/ballistic-systems.pdf" }],
-  },
-
-  // —— Threads / Ripcord ——
-  {
-    slug: "armorstitch-para-thread",
-    title: "ArmorStitch™ Para-aramid Sewing Thread",
-    summary: "High-tenacity, heat-resistant thread for PPE seams, filtration, and technical stitch lines.",
-    hero: "/images/aramid-yarn.jpg",
-    tags: ["para-aramid", "thread", "bonded", "ptfe-coated"],
-    facets: {
-      substrate: ["para-aramid"],
-      feature: ["high-tenacity", "heat-resistant"],
-      industry: ["ppe", "defense", "telecom", "infrastructure"],
-    },
-    bullets: ["2–6 ply; soft-lube, bonded, PTFE-coated", "Service to ~200 °C; chars > 450 °C", "Ticket sizes: ~20–2"],
-    specs: [
-      ["Available tex / ticket", "Approx. 20–200 tex (Ticket 20–2)"],
-      ["Constructions", "2–6 ply; bonded / PTFE / soft-lube"],
-      ["Typical elongation", "3.0–4.5%"],
-      ["Breaking strength (Tex 40)", "≥ 60 N (scales with tex)"],
-    ],
-    usecases: ["Turnout gear seams", "Industrial filter bag seams", "Telecom bindings / ripcord wraps", "Heat shields"],
-    downloads: [{ label: "Technical Data Sheet", href: "/brochures/aramid-yarn-thread.pdf" }],
-  },
-  {
-    slug: "ripcore-telecom-ripcord",
-    title: "RipCore™ Telecom Ripcord",
-    summary:
-      "Para-aramid ripcord yarn for optical cable access — tuned diameter vs. pull strength; optional abrasion finishes.",
-    hero: "/images/ppe-fabrics.jpg",
-    tags: ["para-aramid", "ripcord", "telecom"],
-    facets: { substrate: ["para-aramid"], feature: ["high-tenacity"], industry: ["telecom"] },
-    bullets: [
-      "Linear density tailored (e.g., 110–440 dtex)",
-      "Optional PU / PTFE surface for abrasion & handling",
-      "Tight diameter tolerance for stable splicing windows",
-    ],
-    specs: [
-      ["Linear density", "custom (typ. 110–440 dtex)"],
-      ["Finish", "dry / PU / PTFE"],
-      ["Abrasion", "per IEC 60794 guidance (typical)"],
-    ],
-    usecases: ["FTTx & backbone cable access", "Hybrid power–data jackets", "Aerial/duct cables"],
-    downloads: [{ label: "Ripcord One-pager", href: "/brochures/industry-telecom.pdf" }],
-  },
-
-  // —— Staple yarns ——
-  {
-    slug: "metaspin-1p5d-yarn",
-    title: "MetaSpin™ 1.5D Meta-aramid Staple Yarn",
-    summary: "Spun from 1.5 denier meta-aramid fibre for FR fabrics, thread bases and felts.",
-    hero: "/images/aramid-yarn.jpg",
-    tags: ["meta-aramid", "yarn", "staple"],
-    facets: { substrate: ["meta-aramid"], feature: ["heat-resistant"], industry: ["ppe", "infrastructure", "mobility"] },
-    bullets: ["Counts & blends on request", "Continuous heat ~200 °C; LOI ≥ 28 (fiber typical)", "Cut lengths 38/51 mm"],
-    specs: [
-      ["Fibre fineness", "1.5 d"],
-      ["Cut lengths", "38 / 51 mm"],
-      ["Blend options", "meta+P84, meta+PPS, meta+antistat"],
-    ],
-    usecases: ["FR fabric weaving/knit", "Sewing thread spinning", "Needlefelt base"],
-    downloads: [],
-  },
-  {
-    slug: "metaspin-2d-yarn",
-    title: "MetaSpin™ 2.0D Meta-aramid Staple Yarn",
-    summary: "Spun from 2.0 denier meta-aramid fibre for robust FR constructions.",
-    hero: "/images/aramid-yarn.jpg",
-    tags: ["meta-aramid", "yarn", "staple"],
-    facets: { substrate: ["meta-aramid"], feature: ["heat-resistant"], industry: ["ppe", "infrastructure", "mobility"] },
-    bullets: ["Counts & blends on request", "Continuous heat ~200 °C; LOI ≥ 28 (fiber typical)", "Cut lengths 38/51 mm"],
-    specs: [
-      ["Fibre fineness", "2.0 d"],
-      ["Cut lengths", "38 / 51 mm"],
-      ["Blend options", "meta+P84, meta+PPS, meta+antistat"],
-    ],
-    usecases: ["FR fabric weaving/knit", "Sewing thread spinning", "Needlefelt base"],
-    downloads: [],
-  },
-  {
-    slug: "paraspin-staple-yarn",
-    title: "ParaSpin™ Para-aramid Staple Yarn",
-    summary: "High-tenacity para-aramid staple yarn for cut-resistant & reinforcement applications.",
-    hero: "/images/aramid-yarn.jpg",
-    tags: ["para-aramid", "yarn", "staple"],
-    facets: { substrate: ["para-aramid"], feature: ["high-tenacity"], industry: ["ppe", "defense", "telecom"] },
-    bullets: ["Counts on request; blends with UHMWPE possible", "High tensile & modulus (fiber typical)", "Low elongation"],
-    specs: [
-      ["Tensile strength (fiber)", "~3.0–3.6 GPa"],
-      ["Modulus", "~60–130 GPa"],
-      ["Elongation", "~2.5–4%"],
-    ],
-    usecases: ["Cut-resistant knits", "Reinforcement scrims", "High-strength thread bases"],
-    downloads: [],
-  },
-
-  // —— Nonwovens for filtration / thermal ——
-  {
-    slug: "pps-needlefelt",
-    title: "PPS Needlefelt (Industrial Filtration)",
-    summary:
-      "Polyphenylene sulfide nonwoven felt — excellent chemical and thermal resistance; competitive pricing via scale buying.",
-    hero: "/images/ppe-fabrics.jpg",
-    tags: ["PPS", "nonwoven", "filtration"],
-    facets: { substrate: ["PPS"], feature: ["heat-resistant", "chemical-resistant"], industry: ["infrastructure", "mobility"] },
-    bullets: ["Areal weights 350–600 g/m² typical", "Surface finishes & scrims on request", "Dimensional stability under load"],
-    specs: [
-      ["Polymer", "PPS"],
-      ["Areal weight", "350–600 g/m²"],
-      ["Finishes", "calendered / singed; PTFE membrane optional"],
-    ],
-    usecases: ["Baghouse filters", "Hot gas filtration", "Thermal insulation"],
-    downloads: [],
-  },
-  {
-    slug: "ptfe-needlefelt",
-    title: "PTFE Needlefelt (Industrial Filtration)",
-    summary: "PTFE nonwoven felt for aggressive chemistries and high temperatures.",
-    hero: "/images/ppe-fabrics.jpg",
-    tags: ["PTFE", "nonwoven", "filtration"],
-    facets: { substrate: ["PTFE"], feature: ["heat-resistant", "chemical-resistant"], industry: ["infrastructure", "mobility"] },
-    bullets: ["Areal weights 500–800 g/m² typical", "Excellent chemical resistance", "Optional expanded PTFE membranes"],
-    specs: [
-      ["Polymer", "PTFE"],
-      ["Areal weight", "500–800 g/m² (typ.)"],
-      ["Finishes", "membrane / calender / singe"],
-    ],
-    usecases: ["Aggressive gas filtration", "Corrosive process vents", "Thermal insulation"],
-    downloads: [],
-  },
-
-  // —— Thermaguard™ FR fabrics & linings (core SKUs to expand) ——
-  {
-    slug: "thermaguard-aramid-comfort-93-5-2",
-    title: "Thermaguard™ Aramid Comfort (93/5/2)",
-    summary:
-      "Classic 93% meta-aramid / 5% para-aramid / 2% antistat outer with inherent FR and durable repellency options.",
-    hero: "/images/ppe-fabrics.jpg",
-    tags: ["FR fabric", "aramid blend", "outer-shell"],
-    facets: { substrate: ["aramid-blend"], feature: ["heat-resistant"], industry: ["ppe", "defense"] },
-    bullets: ["Typical weights ~200–250 gsm", "Good colour fastness; water/oil repellent options", "Inherently antistatic"],
-    specs: [
-      ["Construction", "Woven twill / ripstop options"],
-      ["Blend", "93/5/2 (meta/para/antistat)"],
-      ["Finishes", "DWR / oil repellency; optional membrane systems"],
-    ],
-    usecases: ["Turnout outer shells", "Industrial FR garments", "Linings & reinforcements"],
-    downloads: [{ label: "FR Fabrics Range (stub)", href: "/brochures/fr-fabrics.pdf" }],
-  },
-  {
-    slug: "thermaguard-aramid-tough-75-23-2",
-    title: "Thermaguard™ Aramid Tough (75/23/2)",
-    summary:
-      "High tear/abrasion aramid blend 75% meta / 23% para / 2% antistat for lightweight yet durable FR outerwear.",
-    hero: "/images/ppe-fabrics.jpg",
-    tags: ["FR fabric", "aramid blend", "outer-shell"],
-    facets: { substrate: ["aramid-blend"], feature: ["heat-resistant"], industry: ["ppe", "defense"] },
-    bullets: ["Typical weight ~180–200 gsm", "Strong mechanicals for long service life", "DWR / oil repellency options"],
-    specs: [
-      ["Construction", "Woven (e.g., twill)"],
-      ["Blend", "75/23/2 (meta/para/antistat)"],
-      ["Finishes", "DWR / oil repellency"],
-    ],
-    usecases: ["Lightweight turnout outers", "Wildland & station wear", "Industrial FR clothing"],
-    downloads: [{ label: "FR Fabrics Range (stub)", href: "/brochures/fr-fabrics.pdf" }],
-  },
-  {
-    slug: "thermaguard-aramid-ptfe-laminate",
-    title: "Thermaguard™ Aramid Felt Laminated with PTFE",
-    summary:
-      "Spunlace aramid felt laminated to PTFE membrane for breathable waterproof thermal barriers and liners.",
-    hero: "/images/ppe-fabrics.jpg",
-    tags: ["laminate", "PTFE", "aramid felt", "liner"],
-    facets: { substrate: ["aramid-blend"], feature: ["heat-resistant", "chemical-resistant"], industry: ["ppe"] },
-    bullets: ["Low mass thermal barrier options", "Wash-stable dimensional control", "Moisture permeability + water holdout"],
-    specs: [
-      ["Base", "Aramid felt"],
-      ["Membrane", "PTFE (microporous)"],
-      ["Typical mass", "105–165 gsm tiers"],
-    ],
-    usecases: ["Turnout moisture barriers", "FR liners", "Breathable waterproof composites"],
-    downloads: [{ label: "PTFE Laminate (stub)", href: "/brochures/laminate.pdf" }],
-  },
-  {
-    slug: "thermaguard-aramid-viscose-lining",
-    title: "Thermaguard™ Aramid-Viscose FR Lining",
-    summary:
-      "Aramid + FR viscose comfort lining with inherent FR and perspiration absorption for PPE layering systems.",
-    hero: "/images/ppe-fabrics.jpg",
-    tags: ["lining", "FR viscose", "aramid"],
-    facets: { substrate: ["aramid-blend"], feature: ["heat-resistant"], industry: ["ppe"] },
-    bullets: ["Soft hand & moisture management", "Stable after laundering", "Budget-friendly comfort layer"],
-    specs: [
-      ["Blend", "Aramid + FR viscose (+/- antistat)"],
-      ["Typical weight", "~120–140 gsm"],
-      ["Use", "Comfort liner / inner shell"],
-    ],
-    usecases: ["Turnout inner linings", "Industrial FR garment liners"],
-    downloads: [{ label: "Lining (stub)", href: "/brochures/lining.pdf" }],
   },
 ];
 
-// ---------------- INDUSTRIES ----------------
 const INDUSTRY_DB = [
-  {
-    slug: "ppe",
-    title: "PPE",
-    icon: <Shield className="w-5 h-5" />,
-    blurb: "Fire & industrial PPE, uniforms, gloves, and FR accessories.",
-    picks: ["armorstitch-para-thread", "thermaguard-aramid-comfort-93-5-2"],
-  },
   {
     slug: "defense",
     title: "Defense & Security",
@@ -400,25 +161,11 @@ const INDUSTRY_DB = [
     picks: ["shieldlite-hard-ud", "shieldlite-soft-ud"],
   },
   {
-    slug: "telecom",
-    title: "Telecom",
-    icon: <Globe className="w-5 h-5" />,
-    blurb: "Ripcords, strength members, FR tapes and ancillary yarns.",
-    picks: ["ripcore-telecom-ripcord", "armorstitch-para-thread"],
-  },
-  {
     slug: "mobility",
     title: "Mobility",
     icon: <Factory className="w-5 h-5" />,
     blurb: "Automotive, rail, aerospace interiors & insulation.",
-    picks: ["thermaguard-aramid-comfort-93-5-2", "pps-needlefelt"],
-  },
-  {
-    slug: "infrastructure",
-    title: "Infrastructure & Energy",
-    icon: <Building2 className="w-5 h-5" />,
-    blurb: "Power, renewables, switchgear and substations.",
-    picks: ["thermaguard-aramid-tough-75-23-2", "ptfe-needlefelt"],
+    picks: ["shieldlite-soft-ud"],
   },
 ];
 
@@ -439,12 +186,9 @@ export default function App() {
       <main className="flex-1" id="main">
         {route.page === "home" && <Home onGo={go} />}
         {route.page === "products" && <Products onGo={go} />}
-        {route.page === "pdp" && <PDP slug={(route as any).product} onGo={go} />}
+        {route.page === "pdp" && <PDP slug={route.product} onGo={go} />}
         {route.page === "industries" && <Industries onGo={go} />}
-        {route.page === "industry" && <IndustryDetail slug={(route as any).industry} onGo={go} />}
-        {route.page === "about" && <About />}
-        {route.page === "insights" && <Insights />}
-        {route.page === "contact" && <Contact />}
+        {route.page === "industry" && <IndustryDetail slug={route.industry} onGo={go} />}
       </main>
       {route.page === "home" && <StickyQuote />}
       <Footer onGo={go} />
@@ -452,17 +196,8 @@ export default function App() {
   );
 }
 
-function Header({
-  onGo,
-  route,
-  mobile,
-  setMobile,
-}: {
-  onGo: (h: string) => void;
-  route: any;
-  mobile: boolean;
-  setMobile: (v: boolean) => void;
-}) {
+// --------------- Header ---------------
+function Header({ onGo, route, mobile, setMobile }) {
   return (
     <header className="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-red-600">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -475,32 +210,10 @@ function Header({
             </div>
           </div>
           <nav className="hidden md:flex items-center gap-1 relative">
-            <NavLink active={route.page === "home"} onClick={() => onGo(R.HOME)}>
-              Home
-            </NavLink>
-            <NavButton active={String(route.page).startsWith("product")} onClick={() => onGo(R.PRODUCTS)}>
-              Products <ChevronDown className="w-4 h-4 ml-1" />
-            </NavButton>
-            <NavButton active={String(route.page).startsWith("industry")} onClick={() => onGo(R.INDUSTRIES)}>
-              Industries <ChevronDown className="w-4 h-4 ml-1" />
-            </NavButton>
-            <NavLink active={route.page === "about"} onClick={() => onGo(R.ABOUT)}>
-              About
-            </NavLink>
-            <NavLink active={route.page === "insights"} onClick={() => onGo(R.INSIGHTS)}>
-              Insights
-            </NavLink>
-            <NavLink active={route.page === "contact"} onClick={() => onGo(R.CONTACT)}>
-              Contact
-            </NavLink>
-            <a
-              className="ml-2 inline-flex items-center gap-2 rounded-xl border border-red-600 px-3 py-2 text-sm text-red-700 hover:bg-red-50"
-              href="/brochures/artan-protec-brochure.pdf"
-              target="_blank"
-              rel="noreferrer"
-            >
-              <Download className="w-4 h-4" /> Brochure
-            </a>
+            <NavLink active={route.page === "home"} onClick={() => onGo(R.HOME)}>Home</NavLink>
+            <NavLink active={route.page.startsWith("product")} onClick={() => onGo(R.PRODUCTS)}>Products</NavLink>
+            <NavLink active={route.page.startsWith("industry")} onClick={() => onGo(R.INDUSTRIES)}>Industries</NavLink>
+            <NavLink onClick={() => onGo(R.CONTACT)}>Contact</NavLink>
           </nav>
           <button
             className="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-lg border border-red-600"
@@ -518,8 +231,6 @@ function Header({
               ["Home", R.HOME],
               ["Products", R.PRODUCTS],
               ["Industries", R.INDUSTRIES],
-              ["About", R.ABOUT],
-              ["Insights", R.INSIGHTS],
               ["Contact", R.CONTACT],
             ].map(([label, href]) => (
               <button
@@ -530,14 +241,6 @@ function Header({
                 {label}
               </button>
             ))}
-            <a
-              className="block px-2 py-2 text-red-700"
-              href="/brochures/artan-protec-brochure.pdf"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Download Brochure
-            </a>
           </div>
         </div>
       )}
@@ -545,35 +248,7 @@ function Header({
   );
 }
 
-function NavButton({
-  children,
-  onClick,
-  active,
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-  active?: boolean;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`inline-flex items-center px-3 py-2 rounded-xl text-sm border ${
-        active ? "bg-red-600 text-white border-red-600" : "border-red-600 text-red-700 hover:bg-red-50"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
-function NavLink({
-  children,
-  onClick,
-  active,
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-  active?: boolean;
-}) {
+function NavLink({ children, onClick, active }) {
   return (
     <button
       onClick={onClick}
@@ -585,622 +260,144 @@ function NavLink({
 }
 
 // --------------- Home ---------------
-function Home({ onGo }: { onGo: (h: string) => void }) {
+function Home({ onGo }) {
   const { scrollYProgress } = useScroll();
   const y = useTransform(scrollYProgress, [0, 1], [0, 30]);
+
   return (
     <section>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 lg:py-20 grid lg:grid-cols-2 gap-10 items-center">
-        <Reveal>
-          <h1 className="text-4xl/tight md:text-5xl/tight font-extrabold tracking-tight">
-            Advanced Protection.
-            <br />
-            Engineered Performance.
-          </h1>
-          <p className="mt-4 text-neutral-700 max-w-xl">
-            Coats-style clarity, Artan power: engineered aramid yarns &amp; threads, FR fabrics and UHMWPE UD systems,
-            built for high heat, abrasion and impact — with export-ready documentation.
+        <motion.div style={{ y }}>
+          <h1 className="text-4xl md:text-5xl font-extrabold">Advanced Protection.<br />Engineered Performance.</h1>
+          <p className="mt-4 text-neutral-700">
+            Coats-style clarity, Artan power: engineered aramid yarns & threads, FR fabrics and UHMWPE UD systems.
           </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <button
-              onClick={() => onGo(R.PRODUCTS)}
-              className="inline-flex items-center gap-2 rounded-xl bg-red-600 text-white px-4 py-3"
-            >
-              Explore Products <ChevronRight className="w-4 h-4" />
+          <div className="mt-6 flex gap-3">
+            <button onClick={() => onGo(R.PRODUCTS)} className="bg-red-600 text-white px-4 py-3 rounded-xl">
+              Explore Products
             </button>
-            <button
-              onClick={() => onGo(R.INDUSTRIES)}
-              className="inline-flex items-center gap-2 rounded-xl border border-red-600 text-red-700 px-4 py-3 hover:bg-red-50"
-            >
+            <button onClick={() => onGo(R.INDUSTRIES)} className="border border-red-600 text-red-700 px-4 py-3 rounded-xl">
               Industries
             </button>
-            <button
-              onClick={() => onGo(R.ABOUT)}
-              className="inline-flex items-center gap-2 rounded-xl border border-red-600 text-red-700 px-4 py-3 hover:bg-red-50"
-            >
-              About Us
-            </button>
           </div>
-          <div className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {[
-              ["Performance", "Materials engineering"],
-              ["Compliance", "QA & documentation"],
-              ["Global", "Export-ready"],
-              ["Partnership", "OEM & EPC"],
-            ].map(([k, s], i) => (
-              <Reveal delay={i * 0.05} key={k}>
-                <div className="rounded-xl border border-red-200 p-4">
-                  <div className="text-sm text-neutral-500">{s}</div>
-                  <div className="font-semibold">{k}</div>
-                </div>
-              </Reveal>
-            ))}
-          </div>
-        </Reveal>
-        <Reveal>
-          <motion.div style={{ y }} className="relative">
-            <img
-              {...safeImg}
-              src={HERO_SRC}
-              alt="High-performance technical textiles"
-              className="aspect-[4/3] w-full object-cover rounded-3xl border border-red-200"
-            />
-            <div className="absolute -bottom-6 -left-6 w-40 h-40 rounded-3xl overflow-hidden border border-red-200 hidden md:block">
-              <img {...safeImg} src={HERO_SRC} alt="" className="w-full h-full object-cover opacity-80" />
-            </div>
-          </motion.div>
-        </Reveal>
-      </div>
-
-      {/* industry chips */}
-      <div className="bg-neutral-50 border-y border-red-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-          <SectionHeader title="Industries we serve" subtitle="Scope" />
-          <div className="flex flex-wrap gap-3">
-            {INDUSTRY_DB.map((i, idx) => (
-              <Reveal delay={idx * 0.04} key={i.slug}>
-                <button
-                  onClick={() => onGo(R.INDUSTRY(i.slug))}
-                  className="px-4 py-2 rounded-full border border-red-200 text-sm hover:bg-red-50"
-                >
-                  {i.title}
-                </button>
-              </Reveal>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* highlights band */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid md:grid-cols-3 gap-4">
-          {[
-            [<BadgeCheck className="w-5 h-5" />, "Quality & Testing", "Lot traceability, vendor onboarding support, and application-level testing."],
-            [<FileText className="w-5 h-5" />, "Documentation", "Datasheets, compliance notes (RoHS/REACH), and export paperwork guidance."],
-            [<Leaf className="w-5 h-5" />, "Responsible Sourcing", "Materials stewardship and long-term supplier partnerships."],
-          ].map(([icon, k, s]) => (
-            <div key={k as string} className="rounded-2xl border border-red-200 p-5">
-              <div className="flex items-center gap-3">
-                <span className="text-red-700">{icon}</span>
-                <div className="font-semibold">{k}</div>
-              </div>
-              <div className="mt-2 text-sm text-neutral-600">{s as string}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* CTA */}
-      <div className="bg-black text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid md:grid-cols-2 gap-6 items-center">
-          <Reveal>
-            <h3 className="text-2xl font-extrabold tracking-tight">Have a spec? Send it across.</h3>
-            <p className="mt-2 text-white/80">
-              Share drawings or application details — we’ll respond with viable constructions, lead times, and MOQs.
-            </p>
-          </Reveal>
-          <Reveal delay={0.05}>
-            <div className="flex md:justify-end">
-              <a href="mailto:artanprotec@gmail.com" className="inline-flex items-center gap-2 rounded-xl bg-red-600 text-white px-4 py-3">
-                <Mail className="w-4 h-4" /> Contact Sales
-              </a>
-            </div>
-          </Reveal>
-        </div>
+        </motion.div>
+        <motion.div style={{ y }}>
+          <img {...safeImg} src={HERO_SRC} alt="Hero" className="rounded-3xl border border-red-200" />
+        </motion.div>
       </div>
     </section>
   );
 }
 
-function SectionHeader({ title, subtitle }: { title: string; subtitle: string }) {
-  return (
-    <div className="mb-8">
-      <div className="text-xs uppercase tracking-widest text-red-700/80">{subtitle}</div>
-      <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight mt-2">{title}</h2>
-    </div>
-  );
-}
-function Reveal({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 24 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.2 }}
-      transition={{ duration: 0.6, ease: "easeOut", delay }}
-    >
-      {children}
-    </motion.div>
-  );
-}
-
-// --------------- Products (facets like Coats) ---------------
-function Products({ onGo }: { onGo: (h: string) => void }) {
+// --------------- Products ---------------
+function Products({ onGo }) {
   const [q, setQ] = useState("");
-  const [facet, setFacet] = useState({ substrate: "all", feature: "all", industry: "all" });
-  const SUBSTRATES = ["all", "meta-aramid", "para-aramid", "aramid-blend", "UHMWPE"];
-  const FEATURES = ["all", "heat-resistant", "high-tenacity", "bonded", "ptfe-coated", "antistatic", "chemical-resistant"];
-  const INDUSTRIES = ["all", "ppe", "defense", "telecom", "mobility", "infrastructure"];
-
   const list = useMemo(() => PRODUCT_DB, []);
-  const filtered = list.filter((p) => {
-    const hitQ =
+  const filtered = list.filter(
+    (p) =>
       !q ||
       p.title.toLowerCase().includes(q.toLowerCase()) ||
-      p.summary.toLowerCase().includes(q.toLowerCase());
-    const f = (arr: "substrate" | "feature" | "industry", v: string) => v === "all" || (p.facets?.[arr] || []).includes(v);
-    return hitQ && f("substrate", facet.substrate) && f("feature", facet.feature) && f("industry", facet.industry);
-  });
+      p.summary.toLowerCase().includes(q.toLowerCase())
+  );
 
   return (
     <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <SectionHeader title="Products" subtitle="Catalog" />
-
-      {/* search + facets */}
-      <div className="mb-6 grid gap-3 md:grid-cols-4 items-stretch">
-        <div className="relative md:col-span-2">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            className="w-full border border-red-300 rounded-xl pl-9 pr-3 py-2"
-            placeholder="Search products, specs or uses"
-          />
-        </div>
-        <select
-          value={facet.substrate}
-          onChange={(e) => setFacet((s) => ({ ...s, substrate: e.target.value }))}
-          className="border border-red-300 rounded-xl px-3 py-2"
-        >
-          {SUBSTRATES.map((v) => (
-            <option key={v} value={v}>
-              {v}
-            </option>
-          ))}
-        </select>
-        <select
-          value={facet.feature}
-          onChange={(e) => setFacet((s) => ({ ...s, feature: e.target.value }))}
-          className="border border-red-300 rounded-xl px-3 py-2"
-        >
-          {FEATURES.map((v) => (
-            <option key={v} value={v}>
-              {v}
-            </option>
-          ))}
-        </select>
-        <select
-          value={facet.industry}
-          onChange={(e) => setFacet((s) => ({ ...s, industry: e.target.value }))}
-          className="border border-red-300 rounded-xl px-3 py-2 md:col-span-1"
-        >
-          {INDUSTRIES.map((v) => (
-            <option key={v} value={v}>
-              {v}
-            </option>
-          ))}
-        </select>
+      <h2 className="text-3xl font-extrabold mb-6">Products</h2>
+      <div className="mb-6 relative">
+        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          className="w-full border border-red-300 rounded-xl pl-9 pr-3 py-2"
+          placeholder="Search products..."
+        />
       </div>
-
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filtered.map((p, idx) => (
-          <motion.div
-            key={p.slug}
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.2 }}
-            transition={{ duration: 0.5, delay: idx * 0.05 }}
-            className="rounded-2xl border border-red-200 p-5 hover:border-red-300"
-          >
+        {filtered.map((p) => (
+          <motion.div key={p.slug} className="border border-red-200 rounded-2xl p-5">
             <div className="font-semibold">{p.title}</div>
-            <div className="mt-2 text-sm text-neutral-600">{p.summary}</div>
-            <div className="mt-3">
-              <img {...safeImg} src={p.hero} alt={p.title} className="aspect-[4/3] w-full object-cover rounded-xl border border-red-200" />
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {(p.tags || []).slice(0, 4).map((t) => (
-                <span key={t} className="text-xs px-2 py-1 rounded-full border border-red-200">
-                  {t}
-                </span>
-              ))}
-            </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <button onClick={() => onGo(R.PDP(p.slug))} className="inline-flex items-center gap-1 text-sm text-red-700">
-                Explore <ChevronRight className="w-4 h-4" />
+            <div className="text-sm text-neutral-600 mt-2">{p.summary}</div>
+            <img {...safeImg} src={p.hero} alt={p.title} className="mt-3 rounded-xl border border-red-200" />
+            <div className="mt-3 flex gap-2 flex-wrap">
+              <button onClick={() => onGo(R.PDP(p.slug))} className="text-sm text-red-700">
+                Explore <ChevronRight className="w-4 h-4 inline" />
               </button>
               <a
                 href={buildQuoteHref(p.title)}
-                className="inline-flex items-center gap-2 rounded-xl border border-red-600 text-red-700 px-3 py-2 hover:bg-red-50 text-sm"
+                className="inline-flex items-center gap-1 text-sm border border-red-600 px-3 py-1 rounded-xl text-red-700"
               >
-                <Mail className="w-4 h-4" /> Get Quote
+                <Mail className="w-4 h-4" /> Quote
               </a>
             </div>
           </motion.div>
         ))}
       </div>
-      {filtered.length === 0 && <div className="mt-8 text-sm text-neutral-600">No matches. Try clearing filters.</div>}
     </section>
   );
 }
 
-// --------------- PDP template (Coats-like) ---------------
-function PDP({ slug, onGo }: { slug: string; onGo: (h: string) => void }) {
+// --------------- PDP ---------------
+function PDP({ slug, onGo }) {
   const p = PRODUCT_DB.find((x) => x.slug === slug);
-  if (!p) return <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">Not found.</section>;
+  if (!p) return <section className="p-12">Product not found.</section>;
+
   return (
     <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <button
-        onClick={() => onGo(R.PRODUCTS)}
-        className="text-sm text-neutral-600 hover:text-neutral-900 inline-flex items-center gap-1 mb-6"
-      >
-        <ChevronRight className="-scale-x-100 w-4 h-4" /> Back to Products
+      <button onClick={() => onGo(R.PRODUCTS)} className="text-sm text-neutral-600 mb-6">
+        <ChevronRight className="-scale-x-100 w-4 h-4 inline" /> Back
       </button>
-      <h3 className="text-3xl font-extrabold tracking-tight">{p.title}</h3>
-      <p className="mt-2 text-neutral-700 max-w-3xl">{p.summary}</p>
-
-      <div className="mt-6 grid md:grid-cols-2 gap-4">
-        <img {...safeImg} src={p.hero} alt={p.title} className="aspect-[4/3] w-full object-cover rounded-xl border border-red-200" />
-        {[2, 3, 4].map((n) => (
-          <div key={n} className="aspect-[4/3] rounded-xl bg-neutral-100 border border-red-200 grid place-items-center">
-            <span className="text-neutral-500 text-xs">Visual {n}</span>
-          </div>
-        ))}
+      <h3 className="text-3xl font-extrabold">{p.title}</h3>
+      <p className="mt-2 text-neutral-700">{p.summary}</p>
+      <img {...safeImg} src={p.hero} alt={p.title} className="rounded-xl mt-4 border border-red-200" />
+      <ul className="mt-4 list-disc pl-5 text-sm text-neutral-700">
+        {p.bullets.map((b) => <li key={b}>{b}</li>)}
+      </ul>
+      <div className="mt-6">
+        <table className="w-full text-sm border border-red-200">
+          <tbody>
+            {p.specs.map(([k, v]) => (
+              <tr key={k}>
+                <td className="font-medium border-b border-red-100 p-2">{k}</td>
+                <td className="border-b border-red-100 p-2">{v}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
-
-      {/* feature bullets */}
-      <div className="mt-6 grid md:grid-cols-3 gap-4">
-        {p.bullets.map((b, i) => (
-          <div key={i} className="rounded-xl border border-red-200 p-4">
-            <div className="text-sm text-neutral-700">{b}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* key specs */}
-      <div className="mt-8 rounded-2xl border border-red-200 overflow-hidden">
-        <div className="px-4 py-3 bg-red-50 border-b border-red-200 text-sm font-medium">Key Specifications</div>
-        <div className="p-4">
-          <table className="w-full text-sm">
-            <tbody>
-              {p.specs.map(([k, v]) => (
-                <tr key={k} className="border-b last:border-0">
-                  <td className="py-2 pr-3 font-medium text-neutral-800">{k}</td>
-                  <td className="py-2 text-neutral-700">{v}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* use cases */}
-      <div className="mt-8 rounded-2xl border border-red-200 overflow-hidden">
-        <div className="px-4 py-3 bg-red-50 border-b border-red-200 text-sm font-medium">Typical Applications</div>
-        <div className="p-4 grid sm:grid-cols-2 gap-3 text-sm text-neutral-700">
-          <ul className="list-disc pl-5 space-y-1">{p.usecases.slice(0, Math.ceil(p.usecases.length / 2)).map((x) => <li key={x}>{x}</li>)}</ul>
-          <ul className="list-disc pl-5 space-y-1">{p.usecases.slice(Math.ceil(p.usecases.length / 2)).map((x) => <li key={x}>{x}</li>)}</ul>
-        </div>
-      </div>
-
-      {/* downloads + actions */}
-      <div className="mt-6 flex flex-wrap gap-3">
+      <div className="mt-6 flex gap-2 flex-wrap">
         {p.downloads.map((d) => (
-          <a key={d.href} href={d.href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl bg-black text-white px-4 py-3">
+          <a
+            key={d.href}
+            href={d.href}
+            target="_blank"
+            rel="noreferrer"
+            className="bg-black text-white px-4 py-2 rounded-xl inline-flex items-center gap-2"
+          >
             <Download className="w-4 h-4" /> {d.label}
           </a>
         ))}
         <a
           href={buildQuoteHref(p.title)}
-          className="inline-flex items-center gap-2 rounded-xl border border-red-600 text-red-700 px-4 py-3 hover:bg-red-50"
+          className="border border-red-600 text-red-700 px-4 py-2 rounded-xl inline-flex items-center gap-2"
         >
           <Mail className="w-4 h-4" /> Enquire
         </a>
       </div>
-
-      {/* SEO schema */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "Product",
-            name: p.title,
-            brand: { "@type": "Brand", name: "Artan Protec" },
-            category: "Technical textiles",
-            description: p.summary,
-            image: p.hero,
-          }),
-        }}
-      />
     </section>
   );
 }
 
 // --------------- Industries ---------------
-function Industries({ onGo }: { onGo: (h: string) => void }) {
+function Industries({ onGo }) {
   return (
     <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <SectionHeader title="Industries" subtitle="Where we fit" />
+      <h2 className="text-3xl font-extrabold mb-6">Industries</h2>
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {INDUSTRY_DB.map((i, idx) => (
+        {INDUSTRY_DB.map((i) => (
           <motion.button
             key={i.slug}
             onClick={() => onGo(R.INDUSTRY(i.slug))}
-            className="text-left rounded-2xl border border-red-200 hover:border-red-300 p-5"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.2 }}
-            transition={{ duration: 0.5, delay: idx * 0.05 }}
+            className="text-left border border-red-200 rounded-2xl p-5 hover:border-red-300"
           >
             <div className="flex items-center gap-3">
-              <span className="text-red-700">{i.icon}</span>
-              <div className="font-semibold">{i.title}</div>
-            </div>
-            <div className="mt-2 text-sm text-neutral-600">{i.blurb}</div>
-            <div className="mt-4 aspect-[4/3] rounded-xl bg-neutral-100 border border-red-200 grid place-items-center">
-              <span className="text-neutral-500 text-xs">Use-case visual</span>
-            </div>
-          </motion.button>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function IndustryDetail({ slug, onGo }: { slug: string; onGo: (h: string) => void }) {
-  const i = INDUSTRY_DB.find((x) => x.slug === slug);
-  if (!i) return null;
-  const picks = PRODUCT_DB.filter((p) => i.picks.includes(p.slug));
-  return (
-    <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <button
-        onClick={() => onGo(R.INDUSTRIES)}
-        className="text-sm text-neutral-600 hover:text-neutral-900 inline-flex items-center gap-1 mb-6"
-      >
-        <ChevronRight className="-scale-x-100 w-4 h-4" /> Back to Industries
-      </button>
-      <h3 className="text-3xl font-extrabold tracking-tight">{i.title}</h3>
-      <p className="mt-2 text-neutral-700">{i.blurb}</p>
-
-      <div className="mt-6 rounded-2xl border border-red-200 overflow-hidden">
-        <div className="px-4 py-3 bg-red-50 border-b border-red-200 text-sm font-medium">Representative Applications</div>
-        <div className="p-4 grid md:grid-cols-2 gap-3 text-neutral-700">
-          <ul className="list-disc pl-5 space-y-1">
-            <li>OEM components & spares</li>
-            <li>MRO & retrofit projects</li>
-            <li>Vendor registration & pilot lots</li>
-          </ul>
-          <ul className="list-disc pl-5 space-y-1">
-            <li>Long-term supply frameworks</li>
-            <li>Export-ready documentation</li>
-            <li>Testing & compliance support</li>
-          </ul>
-        </div>
-      </div>
-
-      <SectionHeader title="Recommended products" subtitle="Curated" />
-      <div className="grid md:grid-cols-2 gap-6">
-        {picks.map((p) => (
-          <div key={p.slug} className="rounded-2xl border border-red-200 p-5">
-            <div className="font-semibold">{p.title}</div>
-            <div className="mt-2 text-sm text-neutral-600">{p.summary}</div>
-            <div className="mt-3">
-              <img {...safeImg} src={p.hero} alt={p.title} className="aspect-[4/3] w-full object-cover rounded-xl border border-red-200" />
-            </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <button onClick={() => onGo(R.PDP(p.slug))} className="inline-flex items-center gap-1 text-sm text-red-700">
-                View <ChevronRight className="w-4 h-4" />
-              </button>
-              <a
-                href={buildQuoteHref(p.title)}
-                className="inline-flex items-center gap-2 rounded-xl border border-red-600 text-red-700 px-3 py-2 hover:bg-red-50 text-sm"
-              >
-                <Mail className="w-4 h-4" /> Get Quote
-              </a>
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-// --------------- About (pillar layout like Coats corporate) ---------------
-function About() {
-  return (
-    <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <SectionHeader title="About Artan Protec" subtitle="Company" />
-      <p className="text-neutral-700 leading-relaxed">
-        Artan Protec designs and delivers high-performance materials for harsh environments. Our portfolio spans aramid yarns &amp; threads,
-        FR fabrics and UHMWPE UD systems. We partner with OEMs, EPCs and end-users to meet demanding safety and performance targets — with
-        documentation and export logistics dialed in.
-      </p>
-
-      <div className="mt-8 grid md:grid-cols-3 gap-4">
-        {["Design & Development", "Manufacturing & QA", "Export Logistics"].map((k) => (
-          <div key={k} className="rounded-xl border border-red-200 p-4">
-            <div className="text-sm text-neutral-500">Capability</div>
-            <div className="font-semibold">{k}</div>
-            <div className="mt-2 text-sm text-neutral-600">Short descriptive copy placeholder. Add certifications, labs, and key references.</div>
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-8 aspect-[5/2] rounded-2xl bg-neutral-100 border border-red-200 grid place-items-center">
-        <span className="text-neutral-500 text-sm">Team / facility photo placeholder</span>
-      </div>
-    </section>
-  );
-}
-
-// --------------- Insights (Info Hub / SEO) ---------------
-function Insights() {
-  return (
-    <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <SectionHeader title="Insights" subtitle="Guides & how-tos" />
-      <div className="grid md:grid-cols-2 gap-6">
-        {[
-          {
-            slug: "selecting-aramid-thread",
-            title: "Selecting Your Aramid Thread",
-            blurb: "Tex ↔ Ticket, ply, finishes, and stitch recommendations by fabric class.",
-            href: "#/insights/selecting-aramid-thread",
-          },
-          {
-            slug: "ripcord-101",
-            title: "Ripcord & Strength Members 101",
-            blurb: "Choosing para-aramid ripcords: abrasion finishes, diameter vs pull strength.",
-            href: "#/insights/ripcord-101",
-          },
-        ].map((p) => (
-          <div key={p.slug} className="rounded-2xl border border-red-200 p-5">
-            <div className="font-semibold">{p.title}</div>
-            <div className="mt-2 text-sm text-neutral-600">{p.blurb}</div>
-            <div className="mt-4">
-              <a href={p.href} className="inline-flex items-center gap-1 text-red-700">
-                Read <ChevronRight className="w-4 h-4" />
-              </a>
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-// --------------- Contact ---------------
-function Contact() {
-  return (
-    <section className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <SectionHeader title="Contact" subtitle="Let’s build together" />
-      <div className="rounded-2xl border border-red-200 p-6">
-        <div className="grid md:grid-cols-2 gap-6">
-          <div>
-            <div className="text-sm text-neutral-500">Email</div>
-            <a className="font-medium" href="mailto:artanprotec@gmail.com">
-              artanprotec@gmail.com
-            </a>
-            <div className="mt-4 text-sm text-neutral-500">Phone</div>
-            <a className="font-medium" href="tel:+14704450578">
-              +1 (470) 445-0578
-            </a>
-            <div className="mt-4 text-sm text-neutral-500">HQ</div>
-            <div className="font-medium">Mumbai, India</div>
-          </div>
-          <form name="contact" method="POST" data-netlify="true" netlify-honeypot="bot-field" className="grid gap-3">
-            <input type="hidden" name="form-name" value="contact" />
-            <p className="hidden">
-              <label>
-                Don’t fill this out: <input name="bot-field" />
-              </label>
-            </p>
-            <input className="border border-red-300 rounded-xl px-3 py-2" placeholder="Name" name="name" required />
-            <input className="border border-red-300 rounded-xl px-3 py-2" placeholder="Email" type="email" name="email" required />
-            <textarea
-              className="border border-red-300 rounded-xl px-3 py-2 min-h-[100px]"
-              placeholder="Tell us about your requirement"
-              name="message"
-              required
-            />
-            <button type="submit" className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 text-white px-4 py-3">
-              <Mail className="w-4 h-4" /> Send
-            </button>
-          </form>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// --------------- Sticky CTA & Footer ---------------
-function StickyQuote() {
-  return (
-    <a
-      href={buildQuoteHref("Artan Protec")}
-      className="fixed bottom-6 right-6 z-50 inline-flex items-center gap-2 rounded-full bg-red-600 text-white px-5 py-3 shadow-lg hover:brightness-110"
-      aria-label="Get Quote"
-    >
-      <Mail className="w-4 h-4" /> Get Quote
-    </a>
-  );
-}
-function Footer({ onGo }: { onGo: (h: string) => void }) {
-  return (
-    <footer className="mt-10 border-t border-red-200 bg-neutral-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="grid md:grid-cols-4 gap-8">
-          <div>
-            <div className="font-extrabold tracking-tight">Artan Protec</div>
-            <div className="text-xs text-neutral-500">Advanced Protection | Engineered Performance</div>
-            <div className="mt-4 text-sm text-neutral-700">
-              High-performance materials for PPE, mobility, telecom, infrastructure, and defense.
-            </div>
-          </div>
-          <FooterCol title="Products">
-            {PRODUCT_DB.slice(0, 6).map((p) => (
-              <FooterLink key={p.slug} onClick={() => onGo(R.PDP(p.slug))}>
-                {p.title}
-              </FooterLink>
-            ))}
-            <FooterLink onClick={() => onGo(R.PRODUCTS)}>All products</FooterLink>
-          </FooterCol>
-          <FooterCol title="Industries">
-            {INDUSTRY_DB.map((i) => (
-              <FooterLink key={i.slug} onClick={() => onGo(R.INDUSTRY(i.slug))}>
-                {i.title}
-              </FooterLink>
-            ))}
-          </FooterCol>
-          <FooterCol title="Company">
-            <FooterLink onClick={() => onGo(R.ABOUT)}>About</FooterLink>
-            <FooterLink onClick={() => onGo(R.INSIGHTS)}>Insights</FooterLink>
-            <FooterLink onClick={() => onGo(R.CONTACT)}>Contact</FooterLink>
-            <a href="/brochures/artan-protec-brochure.pdf" target="_blank" rel="noreferrer" className="block text-sm text-red-700 hover:text-red-800">
-              Download Brochure
-            </a>
-          </FooterCol>
-        </div>
-        <div className="mt-8 pt-6 border-t border-red-200 text-xs text-neutral-500 flex flex-wrap items-center justify-between gap-2">
-          <div>© {new Date().getFullYear()} Artan Protec. All rights reserved.</div>
-          <div className="flex items-center gap-4">
-            <span>Materials • Testing • Logistics</span>
-          </div>
-        </div>
-      </div>
-    </footer>
-  );
-}
-function FooterCol({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <div className="text-sm font-semibold mb-2">{title}</div>
-      <div className="space-y-1">{children}</div>
-    </div>
-  );
-}
-function FooterLink({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
-  return (
-    <button onClick={onClick} className="block text-sm text-red-700 hover:text-red-800">
-      {children}
-    </button>
-  );
-}
+              <span className="text-red-700">{i.icon}</
