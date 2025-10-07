@@ -1,35 +1,43 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import {
   Menu,
   X,
   ChevronDown,
   ChevronRight,
-  Mail,
-  Download,
-  Search,
   Shield,
   Flame,
+  Layers,
+  Mail,
+  Download,
   Factory,
   Building2,
   Globe,
-  FileText,
-  BadgeCheck,
-  Leaf,
+  Home as HomeIcon,
+  Search,
 } from "lucide-react";
 
 /**
- * Artan Protec — Coats-inspired single-file site
- * TailwindCSS + Framer Motion + hash routing
- * Theme: Red / Black / White (light)
+ * Artan Protec — Single-file React site (TailwindCSS + Framer Motion)
+ * ----------------------------------------------------------------------
+ * Brand: Artan Protec only — no mentions of other brands.
+ * Colors: Red / Black / White theme (light variant).
+ * Navbar: Home, Products, Industries, About, Contact.
+ * Animations: Scroll-reveal + subtle hero parallax.
+ * SPA with hash-routing (shareable URLs).
+ *
+ *  Notes:
+ *  - Keep Tailwind import in src/main.jsx (import "./index.css").
+ *  - Requires deps: framer-motion, lucide-react.
+ *  - Place assets in /public (see LOGO_SRC, HERO_SRC, PRODUCT_IMAGES, PRODUCT_BROCHURES)
  */
 
 const LOGO_SRC = "/artan-protec-logo.png";
 const HERO_SRC = "/hero.jpg";
 
-// ---------------- utils ----------------
+// ----------------- utils -----------------
 const slugify = (s) =>
   String(s || "")
     .toLowerCase()
@@ -49,198 +57,580 @@ const buildQuoteHref = (title, item) => {
   ]
     .filter(Boolean)
     .join("\n");
-
+  const href = `mailto:artanprotec@gmail.com?subject=${encodeURIComponent(
+    "Quote request - " + title
+  )}&body=${encodeURIComponent(body)}`;
+  // small analytics hook
   if (typeof window !== "undefined") {
     window.dataLayer = window.dataLayer || [];
     window.dataLayer.push({ event: "quote_click", title, item: item || null });
   }
-
-  return `mailto:artanprotec@gmail.com?subject=${encodeURIComponent(
-    "Quote request - " + title
-  )}&body=${encodeURIComponent(body)}`;
+  return href;
 };
 
-const safeImg = { loading: "lazy", decoding: "async" };
+const safeImgProps = {
+  loading: "lazy",
+  decoding: "async",
+};
 
-// --------------- routing (hash) ---------------
-const R = {
+// ----------------- data -----------------
+const PRODUCT_IMAGES = {
+  "aramid-fibres-yarns": "/images/aramid-yarn.jpg",
+  "aramid-sewing-threads": "/images/aramid-yarn.jpg",
+  "aramid-fabrics": "/images/ppe-fabrics.jpg",
+  "technical-fabric-conversions": "/images/ppe-fabrics.jpg",
+  "ppe-frr-products": "/images/ppe-fabrics.jpg",
+  "specialized-aramid-applications": "/images/ballistic.jpg",
+};
+
+const PRODUCT_BROCHURES = {
+  "aramid-fibres-yarns": "/brochures/aramid-yarn-thread.pdf",
+  "aramid-sewing-threads": "/brochures/aramid-yarn-thread.pdf",
+  "aramid-fabrics": "/brochures/ppe-fabrics.pdf",
+  "technical-fabric-conversions": "/brochures/ppe-fabrics.pdf",
+  "ppe-frr-products": "/brochures/ppe-fabrics.pdf",
+  "specialized-aramid-applications": "/brochures/ballistic-systems.pdf",
+};
+
+const PRODUCT_CATEGORIES = [
+  {
+    key: "aramid-fibres-yarns",
+    title: "Aramid Yarns",
+    blurb: "Meta & para aramid yarns for technical textiles.",
+    icon: <Layers className="w-5 h-5" />,
+    tags: ["meta-aramid", "para-aramid", "yarns", "fiber", "staple", "filament"],
+  },
+  {
+    key: "aramid-sewing-threads",
+    title: "Aramid Sewing Threads",
+    blurb: "High-performance threads for heat and high-tensile applications.",
+    icon: <Shield className="w-5 h-5" />,
+    tags: ["threads", "bonded", "ptfe", "sewing"],
+  },
+  {
+    key: "aramid-fabrics",
+    title: "Aramid Fabrics – Woven & Nonwoven",
+    blurb: "Woven, needlefelt, blends, coated and laminated aramid fabrics.",
+    icon: <Layers className="w-5 h-5" />,
+    tags: ["woven", "nonwoven", "needlefelt", "laminated", "coated"],
+  },
+  {
+    key: "technical-fabric-conversions",
+    title: "Technical Fabric Conversions",
+    blurb: "Converted media for filtration and specialized use.",
+    icon: <Factory className="w-5 h-5" />,
+    tags: ["filter", "press cloth", "conversion", "antistatic"],
+  },
+  {
+    key: "ppe-frr-products",
+    title: "PPE & FRR Products",
+    blurb: "Protective fabrics for turnout gear, arc-flash, gloves and shells.",
+    icon: <Flame className="w-5 h-5" />,
+    tags: ["ppe", "arc flash", "gloves", "shells"],
+  },
+  {
+    key: "specialized-aramid-applications",
+    title: "Specialized Aramid Applications",
+    blurb: "Composites reinforcement, insulation felts, aramid paper and more.",
+    icon: <Building2 className="w-5 h-5" />,
+    tags: ["composites", "aramid paper", "insulation", "uhmwpe"],
+  },
+];
+
+const PRODUCT_SUBCATS = {
+  "aramid-fibres-yarns": [
+    "Meta-aramid staple fibre",
+    "Para-aramid staple fibre",
+    "Dope-dyed meta-aramid fibres (various colors)",
+    "Aramid filament yarns",
+    "Aramid spun yarns (meta, para, blends)",
+    "Hybrid yarns (aramid + P84, aramid + glass, aramid + FR polyester)",
+  ],
+  "aramid-sewing-threads": [
+    "2-ply to 6-ply aramid threads",
+    "Meta-aramid threads for heat resistance",
+    "Para-aramid threads for high tensile applications",
+    "Bonded aramid threads for sewing heavy PPE",
+    "PTFE-coated aramid threads (chemical resistance)",
+  ],
+  "aramid-fabrics": [
+    "Woven meta-aramid fabrics (plain, twill, satin)",
+    "Woven para-aramid fabrics (ballistic, high-strength)",
+    "Needlefelt aramid fabrics (industrial filtration use)",
+    "Aramid blends (aramid + P84, aramid + PPS)",
+    "Coated aramid fabrics (silicone, PTFE, PU)",
+    "Laminated aramid fabrics for PPE",
+    "Aramid scrim",
+  ],
+  "technical-fabric-conversions": [
+    "Filter press cloths (meta/para-aramid blends)",
+    "Antistatic aramid filter media",
+    "Food-grade aramid filter materials",
+  ],
+  "ppe-frr-products": [
+    "Firefighter turnout gear fabrics",
+    "Arc flash protective fabrics",
+    "Cut-resistant fabrics (aramid + UHMWPE blends)",
+    "Heat-resistant gloves & mitt fabrics",
+    "Industrial PPE outer shells (jackets, coveralls)",
+  ],
+  "specialized-aramid-applications": [
+    "Reinforcement fabrics for composites (UHMWPE)",
+    "High-temp conveyor belts (aramid core)",
+    "Aramid felts for insulation",
+    "Aramid paper (for electrical insulation)",
+  ],
+};
+
+const SUB_BENCHMARK_SPECS = {
+  [slugify("Meta-aramid staple fibre")]: [
+    { k: "Polymer", v: "Meta-aramid" },
+    { k: "Cut lengths", v: "38 / 51 mm" },
+    { k: "Fineness", v: "1.5–2.0 dtex" },
+    { k: "LOI", v: "≥ 28" },
+    { k: "Thermal", v: "No melt/drip; chars > 370°C" },
+  ],
+  [slugify("Para-aramid staple fibre")]: [
+    { k: "Polymer", v: "Para-aramid" },
+    { k: "Tensile strength", v: "~3.0–3.6 GPa (fiber)" },
+    { k: "Modulus", v: "~60–130 GPa" },
+    { k: "Elongation", v: "~2.5–4%" },
+    { k: "Thermal", v: "Decomposes > 500°C" },
+  ],
+  [slugify("Para-aramid threads for high tensile applications")]: [
+    { k: "Composition", v: "100% para-aramid" },
+    { k: "Tex range", v: "20–200 tex (ticket 20–2)" },
+    { k: "Breaking strength", v: "≥ 60 N (Tex 40), increases with tex" },
+    { k: "Elongation", v: "3.0–4.5%" },
+    { k: "Heat resistance", v: "Service to ~200°C, chars > 450°C" },
+  ],
+  [slugify("Woven meta-aramid fabrics (plain, twill, satin)")]: [
+    { k: "Areal weight", v: "150–260 g/m²" },
+    { k: "Weaves", v: "plain / twill / satin" },
+    { k: "LOI", v: "≥ 28 (self-extinguishing)" },
+    { k: "Tensile (MD/CD)", v: "≥ 600 / 400 N @ 200 g/m²" },
+    { k: "Standards", v: "Typically used to meet ISO 15025 A/B once finished" },
+  ],
+  [slugify("Reinforcement fabrics for composites (UHMWPE)")]: [
+    { k: "Form", v: "UD sheets or woven" },
+    { k: "Areal density", v: "120–300 g/m² (UD typical)" },
+    { k: "Use", v: "Soft/hard armor layups; laminates" },
+    { k: "Note", v: "NIJ performance depends on layup design & test plan" },
+  ],
+};
+
+const INDUSTRY_PAGES = [
+  { key: "ppe", title: "PPE", blurb: "Fire & industrial PPE, workwear, uniforms.", icon: <Shield className="w-5 h-5" /> },
+  { key: "defense", title: "Defense & Security", blurb: "Ballistics, FR apparel, high-temp components.", icon: <Flame className="w-5 h-5" /> },
+  { key: "mobility", title: "Mobility", blurb: "Automotive, rail, aerospace interiors & insulation.", icon: <Factory className="w-5 h-5" /> },
+  { key: "infrastructure", title: "Infrastructure & Energy", blurb: "Renewables, switchgear, substations.", icon: <Building2 className="w-5 h-5" /> },
+  { key: "telecom", title: "Telecom", blurb: "Reinforcement yarns, FR housings & cable ancillaries.", icon: <Globe className="w-5 h-5" /> },
+];
+
+// ----------------- routing (hash) -----------------
+const ROUTES = {
   HOME: "#/",
   PRODUCTS: "#/products",
-  PDP: (slug) => `#/products/${slug}`,
+  PRODUCT_DETAIL: (key) => `#/products/${key}`,
+  SUB_DETAIL: (key, subSlug) => `#/products/${key}/sub/${subSlug}`,
   INDUSTRIES: "#/industries",
-  INDUSTRY: (slug) => `#/industries/${slug}`,
+  INDUSTRY_DETAIL: (key) => `#/industries/${key}`,
   ABOUT: "#/about",
-  INSIGHTS: "#/insights",
   CONTACT: "#/contact",
 };
 
 function parseHash() {
-  const seg = (typeof window !== "undefined" ? window.location.hash : "#/")
-    .replace(/^#\//, "")
-    .split("/")
-    .filter(Boolean);
-
+  const h = (typeof window !== "undefined" ? window.location.hash : "#/") || "#/";
+  const seg = h.replace(/^#\//, "").split("/").filter(Boolean);
   if (seg.length === 0) return { page: "home" };
   if (seg[0] === "products" && seg.length === 1) return { page: "products" };
-  if (seg[0] === "products" && seg[1]) return { page: "pdp", product: seg[1] };
+  if (seg[0] === "products" && seg[1] && seg.length === 2)
+    return { page: "product_detail", product: seg[1] };
+  if (seg[0] === "products" && seg[1] && seg[2] === "sub" && seg[3])
+    return { page: "sub_detail", product: seg[1], sub: seg[3] };
   if (seg[0] === "industries" && seg.length === 1) return { page: "industries" };
-  if (seg[0] === "industries" && seg[1]) return { page: "industry", industry: seg[1] };
+  if (seg[0] === "industries" && seg[1]) return { page: "industry_detail", industry: seg[1] };
   if (seg[0] === "about") return { page: "about" };
-  if (seg[0] === "insights") return { page: "insights" };
   if (seg[0] === "contact") return { page: "contact" };
   return { page: "home" };
 }
 
 function useHashRouter() {
   const [route, setRoute] = useState(parseHash());
+
   useEffect(() => {
-    const h = () => setRoute(parseHash());
-    window.addEventListener("hashchange", h);
-    return () => window.removeEventListener("hashchange", h);
+    const onHashChange = () => setRoute(parseHash());
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
-  const go = (hash) => {
-    if (window.location.hash !== hash) window.location.hash = hash;
-    else setRoute(parseHash());
-    window.scrollTo({ top: 0, behavior: "smooth" });
+
+  const navigate = (hash) => {
+    if (typeof window !== "undefined") {
+      if (window.location.hash !== hash) window.location.hash = hash;
+      else {
+        // force update (e.g., re-click same link)
+        setRoute(parseHash());
+      }
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   };
-  return { route, go };
+
+  return { route, navigate };
 }
 
-// ---------------- sample product & industry data ----------------
-const PRODUCT_DB = [
-  {
-    slug: "shieldlite-soft-ud",
-    title: "ShieldLite™ Soft Armour UD Sheets (APS Series)",
-    summary:
-      "UHMWPE unidirectional sheets for soft armor layups; controlled resin and ply areal density for repeatable panels.",
-    hero: "/images/ballistic.jpg",
-    tags: ["UHMWPE", "UD", "soft-armor"],
-    facets: { substrate: ["UHMWPE"], feature: ["high-tenacity"], industry: ["defense", "mobility"] },
-    bullets: [
-      "APS series: APS120–APS300 (gsm per ply)",
-      "Stable resin content for uniform layups",
-      "Nominal 0°/90° orientation",
-    ],
-    specs: [
-      ["Series codes", "APS120, APS150, APS200, APS240, APS300"],
-      ["Fiber", "UHMWPE"],
-      ["Roll width", "Up to 1.5 m"],
-    ],
-    usecases: ["Soft armor vests", "Helmet preforms", "Blast blankets"],
-    downloads: [{ label: "Ballistics Overview", href: "/brochures/ballistic-systems.pdf" }],
-  },
-  {
-    slug: "shieldlite-hard-ud",
-    title: "ShieldLite™ Hard Armour UD Sheets (APH Series)",
-    summary:
-      "UHMWPE UD sheets for hot-press consolidation into stand-alone or ICW hard armor plates and vehicle panels.",
-    hero: "/images/ballistic.jpg",
-    tags: ["UHMWPE", "UD", "hard-armor"],
-    facets: { substrate: ["UHMWPE"], feature: ["high-tenacity"], industry: ["defense", "mobility"] },
-    bullets: [
-      "APH series: APH150–APH300 (gsm per ply)",
-      "Press consolidation-ready surface finish",
-      "Supports complex curvature tooling",
-    ],
-    specs: [
-      ["Series codes", "APH150, APH200, APH250, APH300"],
-      ["Fiber", "UHMWPE"],
-      ["Format", "Flat / tooled curvature"],
-    ],
-    usecases: ["Hard armor plates", "Vehicle armor panels"],
-    downloads: [{ label: "Ballistics Overview", href: "/brochures/ballistic-systems.pdf" }],
-  },
-];
+// ----------------- app -----------------
+export default function ArtanProtechSite() {
+  const { route, navigate } = useHashRouter();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [openDropdown, setOpenDropdown] = useState(""); // "products" | "industries"
 
-const INDUSTRY_DB = [
-  {
-    slug: "defense",
-    title: "Defense & Security",
-    icon: <Flame className="w-5 h-5" />,
-    blurb: "Ballistics, FR apparel, and high-temperature components.",
-    picks: ["shieldlite-hard-ud", "shieldlite-soft-ud"],
-  },
-  {
-    slug: "mobility",
-    title: "Mobility",
-    icon: <Factory className="w-5 h-5" />,
-    blurb: "Automotive, rail, aerospace interiors & insulation.",
-    picks: ["shieldlite-soft-ud"],
-  },
-];
-
-// ---------------- app ----------------
-export default function App() {
-  const { route, go } = useHashRouter();
-  const [mobile, setMobile] = useState(false);
+  // a11y focus ring when page changes
+  const mainRef = useRef(null);
   useEffect(() => {
-    if (!window.location.hash) go(R.HOME);
-  }, []);
-  useEffect(() => {
-    setMobile(false);
+    setOpenDropdown("");
+    setMobileOpen(false);
+    if (mainRef.current) {
+      mainRef.current.setAttribute("tabIndex", "-1");
+      mainRef.current.focus();
+    }
+    // set title
+    const mapTitle = {
+      home: "Artan Protec — Advanced Protection | Engineered Performance",
+      products: "Products — Artan Protec",
+      product_detail: "Product — Artan Protec",
+      sub_detail: "Technical — Artan Protec",
+      industries: "Industries — Artan Protec",
+      industry_detail: "Industry — Artan Protec",
+      about: "About — Artan Protec",
+      contact: "Contact — Artan Protec",
+    };
+    document.title = mapTitle[route.page] || "Artan Protec";
   }, [route.page]);
+
+  // derived data
+  const selectedProduct = route.product;
+  const selectedSubSlug = route.sub;
+  const selectedIndustry = route.industry;
 
   return (
     <div className="min-h-screen bg-white text-neutral-900 flex flex-col">
-      <Header onGo={go} route={route} mobile={mobile} setMobile={setMobile} />
-      <main className="flex-1" id="main">
-        {route.page === "home" && <Home onGo={go} />}
-        {route.page === "products" && <Products onGo={go} />}
-        {route.page === "pdp" && <PDP slug={route.product} onGo={go} />}
-        {route.page === "industries" && <Industries onGo={go} />}
-        {route.page === "industry" && <IndustryDetail slug={route.industry} onGo={go} />}
+      <Header
+        activePage={route.page}
+        onOpenDropdown={setOpenDropdown}
+        openDropdown={openDropdown}
+        setMobileOpen={setMobileOpen}
+        mobileOpen={mobileOpen}
+        onNavigate={navigate}
+      />
+
+      <main ref={mainRef} className="flex-1 outline-none">
+        {route.page === "home" && (
+          <Home
+            onExplore={() => setOpenDropdown("products")}
+            goProducts={() => navigate(ROUTES.PRODUCTS)}
+            goProductDetail={(key) => navigate(ROUTES.PRODUCT_DETAIL(key))}
+            goAbout={() => navigate(ROUTES.ABOUT)}
+            goIndustries={() => navigate(ROUTES.INDUSTRIES)}
+          />
+        )}
+
+        {route.page === "about" && <About />}
+
+        {route.page === "contact" && <Contact />}
+
+        {route.page === "products" && (
+          <Products
+            onSelect={(key) => navigate(ROUTES.PRODUCT_DETAIL(key))}
+          />
+        )}
+
+        {route.page === "industries" && (
+          <Industries onSelect={(key) => navigate(ROUTES.INDUSTRY_DETAIL(key))} />
+        )}
+
+        {route.page === "product_detail" && selectedProduct && (
+          <ProductDetail
+            keyId={selectedProduct}
+            onBack={() => navigate(ROUTES.PRODUCTS)}
+            onSelectSub={(name) =>
+              navigate(ROUTES.SUB_DETAIL(selectedProduct, slugify(name)))
+            }
+          />
+        )}
+
+        {route.page === "sub_detail" && selectedProduct && selectedSubSlug && (
+          <SubProductDetail
+            catKey={selectedProduct}
+            subSlug={selectedSubSlug}
+            onBackToCat={() => navigate(ROUTES.PRODUCT_DETAIL(selectedProduct))}
+          />
+        )}
+
+        {route.page === "industry_detail" && selectedIndustry && (
+          <IndustryDetail
+            keyId={selectedIndustry}
+            onBack={() => navigate(ROUTES.INDUSTRIES)}
+          />
+        )}
       </main>
+
       {route.page === "home" && <StickyQuote />}
-      <Footer onGo={go} />
+
+      <Footer onNavigate={navigate} />
     </div>
   );
 }
 
-// --------------- Header ---------------
-function Header({ onGo, route, mobile, setMobile }) {
+// ----------------- header/nav -----------------
+function Header({
+  activePage,
+  onOpenDropdown,
+  openDropdown,
+  mobileOpen,
+  setMobileOpen,
+  onNavigate,
+}) {
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        onOpenDropdown("");
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [onOpenDropdown]);
+
+  const isActive = (pageKey) =>
+    ({
+      home: ROUTES.HOME,
+      products: ROUTES.PRODUCTS,
+      industries: ROUTES.INDUSTRIES,
+      about: ROUTES.ABOUT,
+      contact: ROUTES.CONTACT,
+    }[activePage] === pageKey);
+
   return (
     <header className="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-red-600">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => onGo(R.HOME)}>
-            <img {...safeImg} src={LOGO_SRC} alt="Artan Protec" className="w-9 h-9 rounded" />
+          <div
+            className="flex items-center gap-3 cursor-pointer"
+            onClick={() => onNavigate(ROUTES.HOME)}
+            aria-label="Go to home"
+          >
+            {LOGO_SRC ? (
+              <img {...safeImgProps} src={LOGO_SRC} alt="Artan Protec" className="w-9 h-9 rounded" />
+            ) : (
+              <div className="w-9 h-9 rounded bg-black text-white grid place-items-center font-bold">
+                A
+              </div>
+            )}
             <div className="leading-tight">
-              <div className="font-extrabold tracking-tight text-red-700">Artan Protec</div>
-              <div className="text-xs text-black">Advanced Protection | Engineered Performance</div>
+              <div className="font-extrabold tracking-tight text-red-700">
+                Artan Protec
+              </div>
+              <div className="text-xs text-black">
+                Advanced Protection | Engineered Performance
+              </div>
             </div>
           </div>
-          <nav className="hidden md:flex items-center gap-1 relative">
-            <NavLink active={route.page === "home"} onClick={() => onGo(R.HOME)}>Home</NavLink>
-            <NavLink active={route.page.startsWith("product")} onClick={() => onGo(R.PRODUCTS)}>Products</NavLink>
-            <NavLink active={route.page.startsWith("industry")} onClick={() => onGo(R.INDUSTRIES)}>Industries</NavLink>
-            <NavLink onClick={() => onGo(R.CONTACT)}>Contact</NavLink>
+
+          {/* Desktop nav */}
+          <nav
+            className="hidden md:flex items-center gap-1 relative"
+            ref={dropdownRef}
+          >
+            <NavLink
+              active={activePage === "home"}
+              onClick={() => onNavigate(ROUTES.HOME)}
+            >
+              <HomeIcon className="w-4 h-4 mr-1" /> Home
+            </NavLink>
+
+            <NavButton
+              onClick={() =>
+                onOpenDropdown(openDropdown === "products" ? "" : "products")
+              }
+              active={openDropdown === "products" || activePage.startsWith("product")}
+              aria-expanded={openDropdown === "products"}
+              aria-controls="products-menu"
+            >
+              Products <ChevronDown className="w-4 h-4 ml-1" />
+            </NavButton>
+
+            <NavButton
+              onClick={() =>
+                onOpenDropdown(openDropdown === "industries" ? "" : "industries")
+              }
+              active={openDropdown === "industries" || activePage.startsWith("industry")}
+              aria-expanded={openDropdown === "industries"}
+              aria-controls="industries-menu"
+            >
+              Industries <ChevronDown className="w-4 h-4 ml-1" />
+            </NavButton>
+
+            <NavLink
+              active={activePage === "about"}
+              onClick={() => onNavigate(ROUTES.ABOUT)}
+            >
+              About
+            </NavLink>
+            <NavLink
+              active={activePage === "contact"}
+              onClick={() => onNavigate(ROUTES.CONTACT)}
+            >
+              Contact
+            </NavLink>
+
+            <a
+              className="ml-2 inline-flex items-center gap-2 rounded-xl border border-red-600 px-3 py-2 text-sm text-red-700 hover:bg-red-50"
+              href="/brochures/artan-protec-brochure.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => {
+                window.dataLayer = window.dataLayer || [];
+                window.dataLayer.push({ event: "brochure_download", file: "artan-protec-brochure.pdf" });
+              }}
+            >
+              <Download className="w-4 h-4" /> Brochure
+            </a>
+
+            {/* Dropdown panels */}
+            {openDropdown === "products" && (
+              <MegaDropdown id="products-menu" title="Explore Products">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {PRODUCT_CATEGORIES.map((p) => (
+                    <DropdownCard
+                      key={p.key}
+                      title={p.title}
+                      blurb={p.blurb}
+                      icon={p.icon}
+                      onClick={() => {
+                        onNavigate(ROUTES.PRODUCTS);
+                        onOpenDropdown("");
+                      }}
+                    />
+                  ))}
+                </div>
+              </MegaDropdown>
+            )}
+
+            {openDropdown === "industries" && (
+              <MegaDropdown id="industries-menu" title="Browse by Industry">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {INDUSTRY_PAGES.map((i) => (
+                    <DropdownCard
+                      key={i.key}
+                      title={i.title}
+                      blurb={i.blurb}
+                      icon={i.icon}
+                      onClick={() => {
+                        onNavigate(ROUTES.INDUSTRIES);
+                        onOpenDropdown("");
+                      }}
+                    />
+                  ))}
+                </div>
+              </MegaDropdown>
+            )}
           </nav>
+
+          {/* Mobile */}
           <button
             className="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-lg border border-red-600"
-            onClick={() => setMobile(!mobile)}
+            onClick={() => setMobileOpen(!mobileOpen)}
             aria-label="Toggle menu"
+            aria-expanded={mobileOpen}
           >
-            {mobile ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
       </div>
-      {mobile && (
+
+      {/* Mobile panel */}
+      {mobileOpen && (
         <div className="md:hidden border-t border-red-600 bg-white">
           <div className="px-4 py-3 space-y-1">
-            {[
-              ["Home", R.HOME],
-              ["Products", R.PRODUCTS],
-              ["Industries", R.INDUSTRIES],
-              ["Contact", R.CONTACT],
-            ].map(([label, href]) => (
-              <button
-                key={label}
-                className="w-full text-left px-2 py-2 rounded-lg hover:bg-red-50"
-                onClick={() => (setMobile(false), onGo(href))}
-              >
-                {label}
-              </button>
-            ))}
+            <button
+              className="w-full text-left px-2 py-2 rounded-lg hover:bg-red-50"
+              onClick={() => {
+                onNavigate(ROUTES.HOME);
+                setMobileOpen(false);
+              }}
+            >
+              Home
+            </button>
+
+            <MobileDisclosure label="Products">
+              {PRODUCT_CATEGORIES.map((p) => (
+                <button
+                  key={p.key}
+                  onClick={() => {
+                    onNavigate(ROUTES.PRODUCTS);
+                    setMobileOpen(false);
+                  }}
+                  className="flex items-start gap-3 text-left rounded-xl border border-red-200 p-3 hover:bg-red-50"
+                >
+                  <div className="mt-1 text-red-700">{p.icon}</div>
+                  <div>
+                    <div className="font-medium">{p.title}</div>
+                    <div className="text-sm text-neutral-500">{p.blurb}</div>
+                  </div>
+                </button>
+              ))}
+            </MobileDisclosure>
+
+            <MobileDisclosure label="Industries">
+              {INDUSTRY_PAGES.map((i) => (
+                <button
+                  key={i.key}
+                  onClick={() => {
+                    onNavigate(ROUTES.INDUSTRIES);
+                    setMobileOpen(false);
+                  }}
+                  className="flex items-start gap-3 text-left rounded-xl border border-red-200 p-3 hover:bg-red-50"
+                >
+                  <div className="mt-1 text-red-700">{i.icon}</div>
+                  <div>
+                    <div className="font-medium">{i.title}</div>
+                    <div className="text-sm text-neutral-500">{i.blurb}</div>
+                  </div>
+                </button>
+              ))}
+            </MobileDisclosure>
+
+            <button
+              className="w-full text-left px-2 py-2 rounded-lg hover:bg-red-50"
+              onClick={() => {
+                onNavigate(ROUTES.ABOUT);
+                setMobileOpen(false);
+              }}
+            >
+              About
+            </button>
+            <button
+              className="w-full text-left px-2 py-2 rounded-lg hover:bg-red-50"
+              onClick={() => {
+                onNavigate(ROUTES.CONTACT);
+                setMobileOpen(false);
+              }}
+            >
+              Contact
+            </button>
+            <a
+              className="block px-2 py-2 text-red-700"
+              href="/brochures/artan-protec-brochure.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => {
+                window.dataLayer = window.dataLayer || [];
+                window.dataLayer.push({ event: "brochure_download", file: "artan-protec-brochure.pdf" });
+              }}
+            >
+              Download Brochure
+            </a>
           </div>
         </div>
       )}
@@ -248,137 +638,518 @@ function Header({ onGo, route, mobile, setMobile }) {
   );
 }
 
+function NavButton({ children, onClick, active, ...rest }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`inline-flex items-center px-3 py-2 rounded-xl text-sm border ${
+        active ? "bg-red-600 text-white border-red-600" : "border-red-600 text-red-700 hover:bg-red-50"
+      }`}
+      {...rest}
+    >
+      {children}
+    </button>
+  );
+}
 function NavLink({ children, onClick, active }) {
   return (
     <button
       onClick={onClick}
-      className={`px-3 py-2 rounded-xl text-sm ${active ? "text-white bg-red-600" : "text-red-700 hover:bg-red-50"}`}
+      className={`px-3 py-2 rounded-xl text-sm ${
+        active ? "text-white bg-red-600" : "text-red-700 hover:bg-red-50"
+      }`}
     >
       {children}
     </button>
   );
 }
 
-// --------------- Home ---------------
-function Home({ onGo }) {
+function MegaDropdown({ id, title, children }) {
+  return (
+    <div className="absolute left-1/2 -translate-x-1/2 top-[calc(100%+10px)] w-[min(100%,960px)]" id={id} role="menu">
+      <div className="rounded-2xl border border-red-200 bg-white shadow-xl p-6">
+        <div className="mb-4 text-xs uppercase tracking-wider text-red-600">
+          {title}
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function DropdownCard({ title, blurb, icon, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className="group text-left rounded-2xl border border-red-200 p-4 hover:border-red-400 hover:bg-red-50"
+    >
+      <div className="flex items-center gap-3">
+        <div className="text-red-700">{icon}</div>
+        <div className="font-semibold">{title}</div>
+      </div>
+      <div className="mt-2 text-sm text-neutral-600">{blurb}</div>
+      <div className="mt-3 inline-flex items-center gap-1 text-sm text-red-700">
+        Explore <ChevronRight className="w-4 h-4" />
+      </div>
+    </button>
+  );
+}
+
+// ----------------- shared bits -----------------
+function Reveal({ children, delay = 0 }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 24 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.2 }}
+      transition={{ duration: 0.6, ease: "easeOut", delay }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+function SectionHeader({ title, subtitle }) {
+  return (
+    <div className="mb-8">
+      <div className="text-xs uppercase tracking-widest text-red-700/80">
+        {subtitle}
+      </div>
+      <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight mt-2">
+        {title}
+      </h2>
+    </div>
+  );
+}
+
+// ----------------- pages -----------------
+function Home({ onExplore, goProducts, goAbout, goIndustries, goProductDetail }) {
   const { scrollYProgress } = useScroll();
   const y = useTransform(scrollYProgress, [0, 1], [0, 30]);
 
   return (
     <section>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 lg:py-20 grid lg:grid-cols-2 gap-10 items-center">
-        <motion.div style={{ y }}>
-          <h1 className="text-4xl md:text-5xl font-extrabold">Advanced Protection.<br />Engineered Performance.</h1>
-          <p className="mt-4 text-neutral-700">
-            Coats-style clarity, Artan power: engineered aramid yarns & threads, FR fabrics and UHMWPE UD systems.
+        <Reveal>
+          <h1 className="text-4xl/tight md:text-5xl/tight font-extrabold tracking-tight">
+            Advanced Protection.
+            <br />
+            Engineered Performance.
+          </h1>
+          <p className="mt-4 text-neutral-700 max-w-xl">
+            Artan Protec builds high-performance materials for demanding
+            environments — from aramid yarns & threads and PPE fabrics to
+            ballistic UHMWPE UD sheets. Trusted by OEMs and end-users across
+            mobility, infrastructure & energy, telecom, and defense.
           </p>
-          <div className="mt-6 flex gap-3">
-            <button onClick={() => onGo(R.PRODUCTS)} className="bg-red-600 text-white px-4 py-3 rounded-xl">
-              Explore Products
+          <div className="mt-6 flex flex-wrap gap-3">
+            <button
+              className="inline-flex items-center gap-2 rounded-xl bg-red-600 text-white px-4 py-3"
+              onClick={onExplore}
+            >
+              Explore Products <ChevronDown className="w-4 h-4" />
             </button>
-            <button onClick={() => onGo(R.INDUSTRIES)} className="border border-red-600 text-red-700 px-4 py-3 rounded-xl">
-              Industries
+            <button
+              onClick={goProducts}
+              className="inline-flex items-center gap-2 rounded-xl border border-red-600 text-red-700 px-4 py-3 hover:bg-red-50"
+            >
+              View Catalog <ChevronRight className="w-4 h-4" />
+            </button>
+            <button
+              onClick={goAbout}
+              className="inline-flex items-center gap-2 rounded-xl border border-red-600 text-red-700 px-4 py-3 hover:bg-red-50"
+            >
+              Who We Are
             </button>
           </div>
-        </motion.div>
-        <motion.div style={{ y }}>
-          <img {...safeImg} src={HERO_SRC} alt="Hero" className="rounded-3xl border border-red-200" />
-        </motion.div>
+
+          <div className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {[
+              { k: "Design-led", s: "Materials engineering" },
+              { k: "Export-ready", s: "Global paperwork" },
+              { k: "OEM + EPC", s: "Vendor friendly" },
+              { k: "QA", s: "Tested performance" },
+            ].map((item, idx) => (
+              <Reveal delay={idx * 0.05} key={item.k}>
+                <div className="rounded-xl border border-red-200 p-4">
+                  <div className="text-sm text-neutral-500">{item.s}</div>
+                  <div className="font-semibold">{item.k}</div>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+        </Reveal>
+
+        <Reveal>
+          <motion.div style={{ y }} className="relative">
+            <img
+              {...safeImgProps}
+              src={HERO_SRC}
+              alt="High-performance aramid & UHMWPE materials"
+              className="aspect-[4/3] w-full h-auto object-cover rounded-3xl border border-red-200"
+            />
+            <div className="absolute -bottom-6 -left-6 w-40 h-40 rounded-3xl overflow-hidden border border-red-200 hidden md:block">
+              <img
+                {...safeImgProps}
+                src={HERO_SRC}
+                alt=""
+                className="w-full h-full object-cover opacity-80"
+              />
+            </div>
+          </motion.div>
+        </Reveal>
+      </div>
+
+      {/* Products strip */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
+        <Reveal>
+          <div className="grid md:grid-cols-3 gap-5">
+            {PRODUCT_CATEGORIES.map((p, idx) => (
+              <Reveal delay={idx * 0.05} key={p.key}>
+                <div className="rounded-2xl border border-red-200 hover:border-red-300 p-5">
+                  <div className="flex items-center gap-3">
+                    <div className="text-red-700">{p.icon}</div>
+                    <div className="font-semibold">{p.title}</div>
+                  </div>
+                  <div className="mt-2 text-sm text-neutral-600">{p.blurb}</div>
+                  <div className="mt-4">
+                    <img
+                      {...safeImgProps}
+                      src={PRODUCT_IMAGES[p.key] || "/images/placeholder.jpg"}
+                      alt={p.title}
+                      className="aspect-[4/3] w-full object-cover rounded-xl border border-red-200"
+                    />
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <button
+                      className="inline-flex items-center gap-1 text-sm text-red-700"
+                      onClick={() => goProductDetail(p.key)}
+                    >
+                      Learn more <ChevronRight className="w-4 h-4" />
+                    </button>
+                    <a
+                      href={buildQuoteHref(p.title)}
+                      className="inline-flex items-center gap-2 rounded-xl border border-red-600 text-red-700 px-3 py-2 hover:bg-red-50 text-sm"
+                    >
+                      <Mail className="w-4 h-4" /> Get Quote
+                    </a>
+                  </div>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+        </Reveal>
+      </div>
+
+      {/* Industries band */}
+      <div className="bg-neutral-50 border-y border-red-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+          <SectionHeader title="Industries we serve" subtitle="Scope" />
+          <Reveal>
+            <div className="flex flex-wrap gap-3">
+              {INDUSTRY_PAGES.map((i, idx) => (
+                <Reveal delay={idx * 0.04} key={i.key}>
+                  <button
+                    onClick={goIndustries}
+                    className="px-4 py-2 rounded-full border border-red-200 text-sm hover:bg-red-50"
+                  >
+                    {i.title}
+                  </button>
+                </Reveal>
+              ))}
+            </div>
+          </Reveal>
+        </div>
+      </div>
+
+      {/* Who we are teaser */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="grid lg:grid-cols-3 gap-6 items-center">
+          <Reveal>
+            <div className="lg:col-span-2 rounded-2xl border border-red-200 p-6">
+              <div className="text-xs uppercase tracking-widest text-red-700/80">
+                Who we are
+              </div>
+              <h3 className="mt-2 text-2xl font-extrabold tracking-tight">
+                Engineering materials for protection and performance
+              </h3>
+              <p className="mt-2 text-neutral-700">
+                We focus on aramid-based yarns & threads, PPE fabrics, and
+                UHMWPE UD sheets for ballistic applications. Built for high
+                heat, abrasion, and impact environments — with documentation and
+                export logistics dialed in.
+              </p>
+              <div className="mt-4">
+                <a
+                  onClick={goAbout}
+                  className="inline-flex items-center gap-2 text-red-700 hover:underline cursor-pointer"
+                >
+                  Learn more about Artan Protec
+                  <ChevronRight className="w-4 h-4" />
+                </a>
+              </div>
+            </div>
+          </Reveal>
+          <Reveal>
+            <div className="aspect-[4/3] rounded-2xl bg-neutral-100 border border-red-200 grid place-items-center">
+              <span className="text-neutral-500 text-sm">
+                Team / facility visual
+              </span>
+            </div>
+          </Reveal>
+        </div>
+      </div>
+
+      {/* CTA band */}
+      <div className="bg-black text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid md:grid-cols-2 gap-6 items-center">
+          <Reveal>
+            <h3 className="text-2xl font-extrabold tracking-tight">
+              Have a spec? Send it across.
+            </h3>
+            <p className="mt-2 text-white/80">
+              Share drawings or application details — we’ll respond with
+              feasible constructions, lead times, and MOQs.
+            </p>
+          </Reveal>
+          <Reveal delay={0.05}>
+            <div className="flex md:justify-end">
+              <a
+                href="mailto:artanprotec@gmail.com"
+                className="inline-flex items-center gap-2 rounded-xl bg-red-600 text-white px-4 py-3"
+                onClick={() => {
+                  window.dataLayer = window.dataLayer || [];
+                  window.dataLayer.push({ event: "contact_click", channel: "email" });
+                }}
+              >
+                Contact Sales <Mail className="w-4 h-4" />
+              </a>
+            </div>
+          </Reveal>
+        </div>
       </div>
     </section>
   );
 }
 
-// --------------- Products ---------------
-function Products({ onGo }) {
+function Products({ onSelect }) {
   const [q, setQ] = useState("");
-  const list = useMemo(() => PRODUCT_DB, []);
-  const filtered = list.filter(
-    (p) =>
+  const [tag, setTag] = useState("all");
+
+  const allTags = useMemo(() => {
+    const s = new Set(["all"]);
+    PRODUCT_CATEGORIES.forEach((p) => p.tags?.forEach((t) => s.add(t)));
+    return Array.from(s);
+  }, []);
+
+  const filtered = PRODUCT_CATEGORIES.filter((p) => {
+    const hitQ =
       !q ||
       p.title.toLowerCase().includes(q.toLowerCase()) ||
-      p.summary.toLowerCase().includes(q.toLowerCase())
-  );
+      p.blurb.toLowerCase().includes(q.toLowerCase()) ||
+      (PRODUCT_SUBCATS[p.key] || []).some((s) =>
+        s.toLowerCase().includes(q.toLowerCase())
+      );
+    const hitTag =
+      tag === "all" || (p.tags || []).some((t) => t === tag);
+    return hitQ && hitTag;
+  });
 
   return (
     <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <h2 className="text-3xl font-extrabold mb-6">Products</h2>
-      <div className="mb-6 relative">
-        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          className="w-full border border-red-300 rounded-xl pl-9 pr-3 py-2"
-          placeholder="Search products..."
-        />
+      <SectionHeader title="Products" subtitle="Catalog" />
+
+      {/* search + filter */}
+      <div className="mb-6 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+        <div className="relative flex-1">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            className="w-full border border-red-300 rounded-xl pl-9 pr-3 py-2"
+            placeholder="Search products, specs, or sub-items"
+            aria-label="Search products"
+          />
+        </div>
+        <div>
+          <select
+            value={tag}
+            onChange={(e) => setTag(e.target.value)}
+            className="border border-red-300 rounded-xl px-3 py-2"
+            aria-label="Filter by tag"
+          >
+            {allTags.map((t) => (
+              <option key={t} value={t}>
+                {t[0].toUpperCase() + t.slice(1)}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
+
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filtered.map((p) => (
-          <motion.div key={p.slug} className="border border-red-200 rounded-2xl p-5">
-            <div className="font-semibold">{p.title}</div>
-            <div className="text-sm text-neutral-600 mt-2">{p.summary}</div>
-            <img {...safeImg} src={p.hero} alt={p.title} className="mt-3 rounded-xl border border-red-200" />
-            <div className="mt-3 flex gap-2 flex-wrap">
-              <button onClick={() => onGo(R.PDP(p.slug))} className="text-sm text-red-700">
-                Explore <ChevronRight className="w-4 h-4 inline" />
+        {filtered.map((p, idx) => (
+          <motion.div
+            key={p.key}
+            className="text-left rounded-2xl border border-red-200 hover:border-red-300 p-5"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.2 }}
+            transition={{ duration: 0.5, delay: idx * 0.05 }}
+          >
+            <div className="flex items-center gap-3">
+              <div className="text-red-700">{p.icon}</div>
+              <div className="font-semibold">{p.title}</div>
+            </div>
+            <div className="mt-2 text-sm text-neutral-600">{p.blurb}</div>
+            <div className="mt-3">
+              <img
+                {...safeImgProps}
+                src={PRODUCT_IMAGES?.[p.key] || "/images/placeholder.jpg"}
+                alt={p.title}
+                className="aspect-[4/3] w-full object-cover rounded-xl border border-red-200"
+              />
+            </div>
+            <ul className="mt-4 space-y-1 text-sm list-disc pl-5">
+              {(PRODUCT_SUBCATS[p.key] || []).map((s) => (
+                <li key={s} className="text-neutral-700">
+                  {s}
+                </li>
+              ))}
+            </ul>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                className="inline-flex items-center gap-1 text-sm text-red-700"
+                onClick={() => onSelect(p.key)}
+              >
+                Explore <ChevronRight className="w-4 h-4" />
               </button>
               <a
                 href={buildQuoteHref(p.title)}
-                className="inline-flex items-center gap-1 text-sm border border-red-600 px-3 py-1 rounded-xl text-red-700"
+                className="inline-flex items-center gap-2 rounded-xl border border-red-600 text-red-700 px-3 py-2 hover:bg-red-50 text-sm"
               >
-                <Mail className="w-4 h-4" /> Quote
+                <Mail className="w-4 h-4" /> Get Quote
               </a>
             </div>
           </motion.div>
         ))}
       </div>
+
+      {filtered.length === 0 && (
+        <div className="mt-10 text-sm text-neutral-600">
+          No matches. Try clearing filters or using broader terms.
+        </div>
+      )}
     </section>
   );
 }
 
-// --------------- PDP ---------------
-function PDP({ slug, onGo }) {
-  const p = PRODUCT_DB.find((x) => x.slug === slug);
-  if (!p) return <section className="p-12">Product not found.</section>;
+function Industries({ onSelect }) {
+  return (
+    <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <SectionHeader title="Industries" subtitle="Where we fit" />
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {INDUSTRY_PAGES.map((i, idx) => (
+          <motion.button
+            key={i.key}
+            onClick={() => onSelect(i.key)}
+            className="text-left rounded-2xl border border-red-200 hover:border-red-300 p-5"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.2 }}
+            transition={{ duration: 0.5, delay: idx * 0.05 }}
+          >
+            <div className="flex items-center gap-3">
+              <div className="text-red-700">{i.icon}</div>
+              <div className="font-semibold">{i.title}</div>
+            </div>
+            <div className="mt-2 text-sm text-neutral-600">{i.blurb}</div>
+            <div className="mt-4 aspect-[4/3] rounded-xl bg-neutral-100 border border-red-200 grid place-items-center">
+              <span className="text-neutral-500 text-xs">Industry visual placeholder</span>
+            </div>
+          </motion.button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ProductDetail({ keyId, onBack, onSelectSub }) {
+  const meta = PRODUCT_CATEGORIES.find((p) => p.key === keyId);
+  if (!meta) return null;
+  const subs = PRODUCT_SUBCATS[keyId] || [];
 
   return (
     <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <button onClick={() => onGo(R.PRODUCTS)} className="text-sm text-neutral-600 mb-6">
-        <ChevronRight className="-scale-x-100 w-4 h-4 inline" /> Back
+      <button
+        onClick={onBack}
+        className="text-sm text-neutral-600 hover:text-neutral-900 inline-flex items-center gap-1 mb-6"
+      >
+        <ChevronRight className="-scale-x-100 w-4 h-4" /> Back to Products
       </button>
-      <h3 className="text-3xl font-extrabold">{p.title}</h3>
-      <p className="mt-2 text-neutral-700">{p.summary}</p>
-      <img {...safeImg} src={p.hero} alt={p.title} className="rounded-xl mt-4 border border-red-200" />
-      <ul className="mt-4 list-disc pl-5 text-sm text-neutral-700">
-        {p.bullets.map((b) => <li key={b}>{b}</li>)}
-      </ul>
-      <div className="mt-6">
-        <table className="w-full text-sm border border-red-200">
-          <tbody>
-            {p.specs.map(([k, v]) => (
-              <tr key={k}>
-                <td className="font-medium border-b border-red-100 p-2">{k}</td>
-                <td className="border-b border-red-100 p-2">{v}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="mt-6 flex gap-2 flex-wrap">
-        {p.downloads.map((d) => (
-          <a
-            key={d.href}
-            href={d.href}
-            target="_blank"
-            rel="noreferrer"
-            className="bg-black text-white px-4 py-2 rounded-xl inline-flex items-center gap-2"
+
+      <h3 className="text-3xl font-extrabold tracking-tight">{meta.title}</h3>
+      <p className="mt-2 text-neutral-700">{meta.blurb}</p>
+
+      {/* Gallery */}
+      <div className="mt-6 grid md:grid-cols-2 gap-4">
+        <img
+          {...safeImgProps}
+          src={PRODUCT_IMAGES?.[keyId] || "/images/placeholder.jpg"}
+          alt={meta.title}
+          className="aspect-[4/3] w-full object-cover rounded-xl border border-red-200"
+        />
+        {[2, 3, 4].map((n) => (
+          <div
+            key={n}
+            className="aspect-[4/3] rounded-xl bg-neutral-100 border border-red-200 grid place-items-center"
           >
-            <Download className="w-4 h-4" /> {d.label}
-          </a>
+            <span className="text-neutral-500 text-xs">Product visual {n}</span>
+          </div>
         ))}
+      </div>
+
+      {/* Catalogue items */}
+      <div className="mt-8 rounded-2xl border border-red-200 overflow-hidden">
+        <div className="px-4 py-3 bg-red-50 border-b border-red-200 text-sm font-medium">
+          Catalogue Items
+        </div>
+        <div className="p-4">
+          <ul className="list-disc pl-5 text-neutral-700 space-y-1">
+            {subs.map((s) => (
+              <li key={s}>
+                <button
+                  className="text-red-700 hover:underline"
+                  onClick={() => onSelectSub(s)}
+                >
+                  {s}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      {/* CTA row */}
+      <div className="mt-6 flex flex-wrap gap-3">
         <a
-          href={buildQuoteHref(p.title)}
-          className="border border-red-600 text-red-700 px-4 py-2 rounded-xl inline-flex items-center gap-2"
+          href={PRODUCT_BROCHURES?.[keyId] || "#"}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 rounded-xl bg-black text-white px-4 py-3"
+          onClick={() => {
+            window.dataLayer = window.dataLayer || [];
+            window.dataLayer.push({
+              event: "brochure_download",
+              file: PRODUCT_BROCHURES?.[keyId] || "",
+            });
+          }}
+        >
+          <Download className="w-4 h-4" /> Download Catalogue
+        </a>
+        <a
+          href="mailto:artanprotec@gmail.com"
+          className="inline-flex items-center gap-2 rounded-xl border border-red-600 text-red-700 px-4 py-3 hover:bg-red-50"
         >
           <Mail className="w-4 h-4" /> Enquire
         </a>
@@ -387,17 +1158,398 @@ function PDP({ slug, onGo }) {
   );
 }
 
-// --------------- Industries ---------------
-function Industries({ onGo }) {
+function SubProductDetail({ catKey, subSlug, onBackToCat }) {
+  const cat = PRODUCT_CATEGORIES.find((c) => c.key === catKey);
+  const subName =
+    (PRODUCT_SUBCATS[catKey] || []).find((n) => slugify(n) === subSlug) ||
+    subSlug.replace(/-/g, " ");
+  const specs = SUB_BENCHMARK_SPECS[slugify(subName)] || [];
+
   return (
-    <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <h2 className="text-3xl font-extrabold mb-6">Industries</h2>
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {INDUSTRY_DB.map((i) => (
-          <motion.button
-            key={i.slug}
-            onClick={() => onGo(R.INDUSTRY(i.slug))}
-            className="text-left border border-red-200 rounded-2xl p-5 hover:border-red-300"
+    <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <button
+        onClick={onBackToCat}
+        className="text-sm text-neutral-600 hover:text-neutral-900 inline-flex items-center gap-1 mb-6"
+      >
+        <ChevronRight className="-scale-x-100 w-4 h-4" /> Back to {cat?.title}
+      </button>
+
+      <h3 className="text-2xl font-extrabold tracking-tight">{subName}</h3>
+      <p className="mt-2 text-neutral-700">
+        Representative benchmark specifications (typical industry values).
+      </p>
+
+      <div className="mt-6 rounded-2xl border border-red-200 overflow-hidden">
+        <div className="px-4 py-3 bg-red-50 border-b border-red-200 text-sm font-medium">
+          Technical Specifications
+        </div>
+        <div className="p-4">
+          {specs.length ? (
+            <table className="w-full text-sm">
+              <tbody>
+                {specs.map((row) => (
+                  <tr key={row.k} className="border-b last:border-0">
+                    <td className="py-2 pr-3 font-medium text-neutral-800">
+                      {row.k}
+                    </td>
+                    <td className="py-2 text-neutral-700">{row.v}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="text-neutral-600">
+              Add specific data for this item to replace the generic example.
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-6 flex flex-wrap gap-3">
+        <a
+          href={buildQuoteHref(cat?.title || "Product", subName)}
+          className="inline-flex items-center gap-2 rounded-xl bg-black text-white px-4 py-3"
+        >
+          <Mail className="w-4 h-4" /> Request Quote
+        </a>
+      </div>
+    </section>
+  );
+}
+
+function IndustryDetail({ keyId, onBack }) {
+  const meta = INDUSTRY_PAGES.find((i) => i.key === keyId);
+  if (!meta) return null;
+  return (
+    <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <button
+        onClick={onBack}
+        className="text-sm text-neutral-600 hover:text-neutral-900 inline-flex items-center gap-1 mb-6"
+      >
+        <ChevronRight className="-scale-x-100 w-4 h-4" /> Back to Industries
+      </button>
+      <h3 className="text-3xl font-extrabold tracking-tight">{meta.title}</h3>
+      <p className="mt-2 text-neutral-700">{meta.blurb}</p>
+
+      <div className="mt-6 grid md:grid-cols-2 gap-4">
+        {[1, 2, 3, 4].map((n) => (
+          <div
+            key={n}
+            className="aspect-[4/3] rounded-xl bg-neutral-100 border border-red-200 grid place-items-center"
           >
-            <div className="flex items-center gap-3">
-              <span className="text-red-700">{i.icon}</
+            <span className="text-neutral-500 text-xs">Use-case visual {n}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-8 rounded-2xl border border-red-200 overflow-hidden">
+        <div className="px-4 py-3 bg-red-50 border-b border-red-200 text-sm font-medium">
+          Common Applications
+        </div>
+        <div className="p-4 grid md:grid-cols-2 gap-3 text-neutral-700">
+          <ul className="list-disc pl-5 space-y-1">
+            <li>OEM components & spares</li>
+            <li>Maintenance, repair & overhaul (MRO)</li>
+            <li>Vendor registration & pilot lots</li>
+          </ul>
+          <ul className="list-disc pl-5 space-y-1">
+            <li>Long-term supply frameworks</li>
+            <li>Export-ready documentation</li>
+            <li>Testing & compliance support</li>
+          </ul>
+        </div>
+      </div>
+
+      <div className="mt-6 flex flex-wrap gap-3">
+        <a
+          href={`/brochures/industry-${keyId}.pdf`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 rounded-xl bg-black text-white px-4 py-3"
+          onClick={() => {
+            window.dataLayer = window.dataLayer || [];
+            window.dataLayer.push({
+              event: "brochure_download",
+              file: `industry-${keyId}.pdf`,
+            });
+          }}
+        >
+          <Download className="w-4 h-4" />
+          Industry One-pager
+        </a>
+        <a
+          href="mailto:artanprotec@gmail.com"
+          className="inline-flex items-center gap-2 rounded-xl border border-red-600 text-red-700 px-4 py-3 hover:bg-red-50"
+        >
+          <Mail className="w-4 h-4" />
+          Talk to Sales
+        </a>
+      </div>
+    </section>
+  );
+}
+
+function About() {
+  return (
+    <section className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <SectionHeader title="About Artan Protec" subtitle="Company" />
+      <p className="text-neutral-700 leading-relaxed">
+        Artan Protec designs and delivers high-performance materials for harsh
+        environments. Our portfolio spans aramid yarns & threads, PPE fabrics,
+        and UHMWPE UD sheets for ballistic applications. We combine precise
+        engineering with reliable execution to help OEMs, EPCs, and end-users
+        meet demanding performance, safety, and compliance requirements.
+      </p>
+
+      <div className="mt-8 grid md:grid-cols-3 gap-4">
+        {["Design & Development", "Manufacturing & QA", "Export Logistics"].map(
+          (k) => (
+            <div key={k} className="rounded-xl border border-red-200 p-4">
+              <div className="text-sm text-neutral-500">Capability</div>
+              <div className="font-semibold">{k}</div>
+              <div className="mt-2 text-sm text-neutral-600">
+                Short descriptive copy placeholder. Add your certifications and
+                references.
+              </div>
+            </div>
+          )
+        )}
+      </div>
+
+      <div className="mt-8 aspect-[5/2] rounded-2xl bg-neutral-100 border border-red-200 grid place-items-center">
+        <span className="text-neutral-500 text-sm">
+          Team / facility photo placeholder
+        </span>
+      </div>
+    </section>
+  );
+}
+
+function Contact() {
+  const [status, setStatus] = useState("idle"); // idle | ok | err
+
+  return (
+    <section className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <SectionHeader title="Contact" subtitle="Let’s build together" />
+      <div className="rounded-2xl border border-red-200 p-6">
+        <div className="grid md:grid-cols-2 gap-6">
+          <div>
+            <div className="text-sm text-neutral-500">Email</div>
+            <a className="font-medium" href="mailto:artanprotec@gmail.com">
+              artanprotec@gmail.com
+            </a>
+            <div className="mt-4 text-sm text-neutral-500">Phone</div>
+            <a className="font-medium" href="tel:+14704450578">
+              +1 (470) 445-0578
+            </a>
+            <div className="mt-4 text-sm text-neutral-500">HQ</div>
+            <div className="font-medium">Mumbai, India</div>
+          </div>
+
+          {/* Netlify static form */}
+          <form
+            name="contact"
+            method="POST"
+            data-netlify="true"
+            netlify-honeypot="bot-field"
+            className="grid gap-3"
+            onSubmit={() => setStatus("ok")}
+          >
+            <input type="hidden" name="form-name" value="contact" />
+            <p className="hidden">
+              <label>
+                Don’t fill this out: <input name="bot-field" />
+              </label>
+            </p>
+            <input
+              className="border border-red-300 rounded-xl px-3 py-2"
+              placeholder="Name"
+              name="name"
+              required
+            />
+            <input
+              className="border border-red-300 rounded-xl px-3 py-2"
+              placeholder="Email"
+              type="email"
+              name="email"
+              required
+            />
+            <textarea
+              className="border border-red-300 rounded-xl px-3 py-2 min-h-[100px]"
+              placeholder="Tell us about your requirement"
+              name="message"
+              required
+            />
+            <button
+              type="submit"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 text-white px-4 py-3"
+              onClick={() => {
+                window.dataLayer = window.dataLayer || [];
+                window.dataLayer.push({ event: "contact_submit" });
+              }}
+            >
+              <Mail className="w-4 h-4" /> Send
+            </button>
+            {status === "ok" && (
+              <div className="text-sm text-green-700">
+                Thanks! We’ll get back to you shortly.
+              </div>
+            )}
+          </form>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ----------------- sticky CTA & footer -----------------
+function StickyQuote() {
+  return (
+    <a
+      href={buildQuoteHref("Artan Protec")}
+      className="fixed bottom-6 right-6 z-50 inline-flex items-center gap-2 rounded-full bg-red-600 text-white px-5 py-3 shadow-lg hover:brightness-110"
+      aria-label="Get Quote"
+    >
+      <Mail className="w-4 h-4" /> Get Quote
+    </a>
+  );
+}
+
+function Footer({ onNavigate }) {
+  return (
+    <footer className="mt-10 border-t border-red-200 bg-neutral-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div className="grid md:grid-cols-4 gap-8">
+          <div>
+            <div className="font-extrabold tracking-tight">Artan Protec</div>
+            <div className="text-xs text-neutral-500">
+              Advanced Protection | Engineered Performance
+            </div>
+            <div className="mt-4 text-sm text-neutral-700">
+              High-performance materials for PPE, mobility, infrastructure,
+              telecom, and defense.
+            </div>
+          </div>
+
+          <FooterCol title="Products">
+            {PRODUCT_CATEGORIES.map((p) => (
+              <FooterLink
+                key={p.key}
+                onClick={() => onNavigate(ROUTES.PRODUCTS)}
+              >
+                {p.title}
+              </FooterLink>
+            ))}
+          </FooterCol>
+
+          <FooterCol title="Industries">
+            {INDUSTRY_PAGES.map((i) => (
+              <FooterLink
+                key={i.key}
+                onClick={() => onNavigate(ROUTES.INDUSTRIES)}
+              >
+                {i.title}
+              </FooterLink>
+            ))}
+          </FooterCol>
+
+          <FooterCol title="Company">
+            <FooterLink onClick={() => onNavigate(ROUTES.HOME)}>Home</FooterLink>
+            <FooterLink onClick={() => onNavigate(ROUTES.ABOUT)}>About</FooterLink>
+            <FooterLink onClick={() => onNavigate(ROUTES.CONTACT)}>Contact</FooterLink>
+            <a
+              href="/brochures/artan-protec-brochure.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block text-sm text-red-700 hover:text-red-800"
+              onClick={() => {
+                window.dataLayer = window.dataLayer || [];
+                window.dataLayer.push({
+                  event: "brochure_download",
+                  file: "artan-protec-brochure.pdf",
+                });
+              }}
+            >
+              Download Brochure
+            </a>
+          </FooterCol>
+        </div>
+
+        <div className="mt-8 pt-6 border-t border-red-200 text-xs text-neutral-500 flex flex-wrap items-center justify-between gap-2">
+          <div>© {new Date().getFullYear()} Artan Protec. All rights reserved.</div>
+          <div className="flex items-center gap-4">
+            <a href="#" onClick={(e) => e.preventDefault()} className="hover:text-neutral-900">
+              Privacy
+            </a>
+            <a href="#" onClick={(e) => e.preventDefault()} className="hover:text-neutral-900">
+              Terms
+            </a>
+          </div>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+function FooterCol({ title, children }) {
+  return (
+    <div>
+      <div className="text-sm font-semibold">{title}</div>
+      <div className="mt-3 space-y-2">{children}</div>
+    </div>
+  );
+}
+function FooterLink({ children, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className="block text-sm text-neutral-700 hover:text-neutral-900"
+    >
+      {children}
+    </button>
+  );
+}
+
+function MobileDisclosure({ label, children }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div>
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full inline-flex items-center justify-between px-2 py-2 rounded-lg hover:bg-red-50"
+        aria-expanded={open}
+      >
+        <span>{label}</span>
+        <ChevronDown
+          className={`w-4 h-4 transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+      {open && <div className="px-2 pb-3 space-y-2">{children}</div>}
+    </div>
+  );
+}
+
+// ---- Dev smoke tests (console only) ----
+if (typeof window !== "undefined") {
+  try {
+    const href = buildQuoteHref("Foo", "Bar");
+    console.assert(href.startsWith("mailto:"), "buildQuoteHref returns mailto:");
+    console.assert(
+      href.includes(encodeURIComponent("Quote request - Foo")),
+      "subject encoded"
+    );
+    console.assert(href.includes("%0A"), "newline encoded via join(\\n)");
+    console.assert(
+      slugify("Meta-aramid staple fibre") === "meta-aramid-staple-fibre",
+      "slugify basic"
+    );
+    const href2 = buildQuoteHref("X");
+    console.assert(
+      href2.includes(encodeURIComponent("Quote request - X")),
+      "subject encoded for no-item"
+    );
+    console.assert(!href2.includes("undefined"), "no undefined in body when item omitted");
+  } catch (_) {
+    // no-op
+  }
+}
