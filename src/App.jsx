@@ -28,6 +28,18 @@ import {
  * Notes:
  *  - Drop assets in /public (logo: /artan-protec-logo.png, hero: /hero.jpg)
  *  - Replace PRODUCT_DB & INDUSTRY_DB with live content later.
+ *
+ * Assets to upload now (exact paths):
+ *  /artan-protec-logo.png
+ *  /hero.jpg
+ *  /images/ballistic.jpg
+ *  /images/aramid-yarn.jpg
+ *  /images/ppe-fabrics.jpg
+ *  /brochures/artan-protec-brochure.pdf
+ *  /brochures/ballistic-systems.pdf
+ *  /brochures/industry-telecom.pdf
+ *  /brochures/aramid-yarn-thread.pdf
+ *  /brochures/ppe-fabrics.pdf
  */
 
 const LOGO_SRC = "/artan-protec-logo.png";
@@ -112,18 +124,18 @@ const PRODUCT_DB = [
   // —— UHMWPE UD Sheets ——
   {
     slug: "shieldlite-soft-ud",
-    title: "ShieldLite™ Soft Armour UD Sheets (APS Series)",
+    title: "ShieldLite™ Soft Armour UD Sheets (AS Series)",
     summary: "UHMWPE unidirectional sheets for soft armor layups; controlled resin, consistent ply areal density.",
     hero: "/images/ballistic.jpg",
     tags: ["uhmwpe","ud","soft-armor"],
     facets: { substrate:["uHMWPE"], feature:["high-tenacity"], industry:["defense","mobility"] },
     bullets: [
-      "Series codes APS120–APS300 where number = gsm per ply",
+      "AS series codes (e.g., AS-120, AS-150…) — numeral = gsm per ply (to be confirmed)",
       "Stable resin content for repeatable layups",
       "0°/90° layup (typical); multi‑ax options on request"
     ],
     specs: [
-      ["Series codes","APS120, APS150, APS200, APS240, APS300"],
+      ["Series codes","AS-120, AS-150, AS-200, AS-240, AS-300 (placeholder, share final)"] ,
       ["Fiber","UHMWPE"],
       ["Ply orientation","0°/90° (typical)"],
       ["Resin content","Nominal 18–22% (program‑dependent)"],
@@ -136,22 +148,32 @@ const PRODUCT_DB = [
   },
   {
     slug: "shieldlite-hard-ud",
-    title: "ShieldLite™ Hard Armour UD Sheets (APH Series)",
-    summary: "UHMWPE UD sheets for hot-press consolidation into hard armor plates and vehicle panels.",
+    title: "ShieldLite™ Hard Armour UD Sheets (AH Series)",
+    summary: "UHMWPE UD sheets for hot‑press consolidation into hard armor plates and vehicle panels.",
     hero: "/images/ballistic.jpg",
     tags: ["uhmwpe","ud","hard-armor"],
     facets: { substrate:["uHMWPE"], feature:["high-tenacity"], industry:["defense","mobility"] },
     bullets: [
-      "Series codes APH150–APH300 (gsm per ply)",
-      "Designed for press consolidation; consistent resin films",
-      "Panel flat or tooled curvature per program"
+      "Hard series codes confirmed: AH‑120 / AH‑240 (Shield); AHX‑115 / AHX‑230 (Guard); AHY‑110 (Prime); AHZ‑110 / AHZ‑220 (Ultra)",
+      "Numeral denotes GSM per ply",
+      "Designed for press consolidation; consistent resin films"
     ],
     specs: [
-      ["Series codes","APH150, APH200, APH250, APH300"],
+      ["Series mapping","Shield (AH‑120, AH‑240); Guard (AHX‑115, AHX‑230); Prime (AHY‑110); Ultra (AHZ‑110, AHZ‑220)"],
       ["Fiber","UHMWPE"],
       ["Process","Hot press consolidation (temp/time/pressure per program)"],
       ["Panel formats","Flat; curvature via tool"],
       ["Note","Ballistic performance depends on layup & test plan"],
+    ],
+    // Rendered in PDP as a table
+    variants: [
+      { code: "AH-120", gsm: 120, series: "Shield" },
+      { code: "AH-240", gsm: 240, series: "Shield" },
+      { code: "AHX-115", gsm: 115, series: "Guard" },
+      { code: "AHX-230", gsm: 230, series: "Guard" },
+      { code: "AHY-110", gsm: 110, series: "Prime" },
+      { code: "AHZ-110", gsm: 110, series: "Ultra" },
+      { code: "AHZ-220", gsm: 220, series: "Ultra" }
     ],
     usecases: ["Hard armor plates","Vehicle armor panels","Composite laminates"],
     downloads: [{ label: "Ballistics Overview", href: "/brochures/ballistic-systems.pdf"}],
@@ -663,6 +685,33 @@ function PDP({ slug, onGo }){
         </div>
       </div>
 
+      {/* variants table (if present) */}
+      {Array.isArray(p.variants) && p.variants.length > 0 && (
+        <div className="mt-8 rounded-2xl border border-red-200 overflow-hidden">
+          <div className="px-4 py-3 bg-red-50 border-b border-red-200 text-sm font-medium">Variants & Codes</div>
+          <div className="p-4 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left border-b">
+                  <th className="py-2 pr-3">Code</th>
+                  <th className="py-2 pr-3">GSM</th>
+                  <th className="py-2 pr-3">Series</th>
+                </tr>
+              </thead>
+              <tbody>
+                {p.variants.map(v => (
+                  <tr key={v.code} className="border-b last:border-0">
+                    <td className="py-2 pr-3 font-medium text-neutral-800">{v.code}</td>
+                    <td className="py-2 pr-3 text-neutral-700">{v.gsm}</td>
+                    <td className="py-2 pr-3 text-neutral-700">{v.series}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* use cases */}
       <div className="mt-8 rounded-2xl border border-red-200 overflow-hidden">
         <div className="px-4 py-3 bg-red-50 border-b border-red-200 text-sm font-medium">Typical Applications</div>
@@ -878,13 +927,17 @@ function FooterLink({ children, onClick }){
 // ---- Dev smoke tests (console only) ----
 if (typeof window !== "undefined") {
   try {
+    const originalHash = window.location.hash;
+
     const href = buildQuoteHref("Foo", "Bar");
     console.assert(href.startsWith("mailto:"), "buildQuoteHref returns mailto:");
     console.assert(href.includes(encodeURIComponent("Quote request - Foo")), "subject encoded");
-    console.assert(href.includes("%0A"), "newline encoded via join(\\n)");
+    console.assert(href.includes("%0A"), "newline encoded via join(\n)");
     console.assert(slugify("Meta-aramid staple fibre") === "meta-aramid-staple-fibre", "slugify basic");
 
-    // Router tests
+    // Router tests — preserve and restore hash
+    window.location.hash = "";
+    console.assert(parseHash().page === "home", "router home default");
     window.location.hash = "#/products";
     console.assert(parseHash().page === "products", "router products page");
     window.location.hash = "#/products/abc";
@@ -892,6 +945,14 @@ if (typeof window !== "undefined") {
     window.location.hash = "#/industries/telecom";
     const ph = parseHash();
     console.assert(ph.page === "industry" && ph.industry === "telecom", "router industry page");
+
+    // Data tests — ensure hard variants present
+    const hard = PRODUCT_DB.find(p=>p.slug==="shieldlite-hard-ud");
+    console.assert(Array.isArray(hard.variants) && hard.variants.length >= 5, "hard variants present");
+    console.assert(hard.variants.some(v=>v.code==="AH-120"), "AH-120 variant exists");
+
+    // Restore original hash
+    window.location.hash = originalHash || "#/";
   } catch (_) {
     // no-op to avoid breaking runtime
   }
