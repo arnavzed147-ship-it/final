@@ -46,6 +46,8 @@ import {
  *   /images/products/ptfe-needlefelt.jpg
  *   /images/products/thermaguard-fr-fabrics.jpg
  *   /images/products/thermaguard-fr-blends.jpg
+ *   /images/products/aramid-paper.jpg
+ *   /images/products/aramid-gloves.jpg
  *
  * Product brochures (1 per product, same slug):
  *   /brochures/products/shieldlite-soft-ud.pdf
@@ -59,6 +61,8 @@ import {
  *   /brochures/products/ptfe-needlefelt.pdf
  *   /brochures/products/thermaguard-fr-fabrics.pdf
  *   /brochures/products/thermaguard-fr-blends.pdf
+ *   /brochures/products/aramid-paper.pdf
+ *   /brochures/products/aramid-gloves.pdf
  *
  * Industry images & brochures (1 each):
  *   /images/industries/ppe.jpg
@@ -77,6 +81,7 @@ import {
 
 const LOGO_SRC = "/artan-protec-logo.png";
 const HERO_SRC = "/hero.jpg";
+const KEY_SPECS_LABEL = "Key Specifications"; // used on PDP to avoid string typos
 
 // ---------------- utils ----------------
 const slugify = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
@@ -311,7 +316,7 @@ const PRODUCT_DB = [
     summary: "Polyphenylene sulfide nonwoven felt — excellent chemical and thermal resistance; competitive pricing via scale buying.",
     hero: "/images/products/pps-needlefelt.jpg",
     brochure: "/brochures/products/pps-needlefelt.pdf",
-    group: "Nonwovens",
+    group: "Non-woven fabrics",
     tags: ["pps","nonwoven","filtration"],
     facets: { substrate:["pps"], feature:["heat-resistant","chemical-resistant"], industry:["infrastructure","mobility","filtration"] },
     bullets: ["Areal weights 350–600 g/m² typical","Surface finishes & scrims on request","Dimensional stability under load"],
@@ -324,7 +329,7 @@ const PRODUCT_DB = [
     summary: "PTFE nonwoven felt for aggressive chemistries and high temperatures.",
     hero: "/images/products/ptfe-needlefelt.jpg",
     brochure: "/brochures/products/ptfe-needlefelt.pdf",
-    group: "Nonwovens",
+    group: "Non-woven fabrics",
     tags: ["ptfe","nonwoven","filtration"],
     facets: { substrate:["ptfe"], feature:["heat-resistant","chemical-resistant"], industry:["infrastructure","mobility","filtration"] },
     bullets: ["Areal weights 500–800 g/m² typical","PTFE membrane options","Excellent chemical resistance"],
@@ -339,7 +344,7 @@ const PRODUCT_DB = [
     summary: "FR woven and nonwoven fabrics for PPE, industrial insulation and filtration. Options: silicone/PTFE/PU coatings, laminates.",
     hero: "/images/products/thermaguard-fr-fabrics.jpg",
     brochure: "/brochures/products/thermaguard-fr-fabrics.pdf",
-    group: "Fabrics",
+    group: "Woven fabrics",
     tags: ["meta-aramid","woven","nonwoven","laminate"],
     facets: { substrate:["meta-aramid","aramid-blend"], feature:["heat-resistant","antistatic"], industry:["ppe","mobility","infrastructure","filtration"] },
     bullets: ["Plain/twill/satin; 150–260 g/m² typical","Needlefelts for filtration and insulation","Add‑ons: silicone, PTFE, PU; laminated shells"],
@@ -352,12 +357,42 @@ const PRODUCT_DB = [
     summary: "Woven aramid fabrics including common blends like 93:5:2 and 50:50; engineered for PPE and industrial use.",
     hero: "/images/products/thermaguard-fr-blends.jpg",
     brochure: "/brochures/products/thermaguard-fr-blends.pdf",
-    group: "Fabrics",
+    group: "Woven fabrics",
     tags: ["aramid-blend","woven","antistatic"],
     facets: { substrate:["aramid-blend"], feature:["heat-resistant","antistatic"], industry:["ppe","infrastructure"] },
     bullets: ["Blend examples: 93:5:2 (meta:para:antistat), 50:50","Weaves: plain / twill / satin","Coatings: silicone / PTFE / PU"],
     specs: [["Areal weight","160–280 g/m² (typical)"],["Surface resistivity","per antistat spec (on request)"],["Finishes","dyed, calendered, coated, laminated"]],
     usecases: ["Coveralls & uniforms","FR liners","Industrial insulation"],
+  },
+
+  // —— Aramid paper ——
+  {
+    slug: "aramid-paper",
+    title: "Aramid Electrical Insulation Paper",
+    summary: "Meta/para‑aramid paper for electrical insulation and thermal barriers; smooth surface and good formability.",
+    hero: "/images/products/aramid-paper.jpg",
+    brochure: "/brochures/products/aramid-paper.pdf",
+    group: "Aramid paper",
+    tags: ["aramid","paper","insulation"],
+    facets: { substrate:["aramid-paper"], feature:["heat-resistant"], industry:["infrastructure","mobility"] },
+    bullets: ["Thermal class up to 220 °C program‑dependent","Thickness range 0.05–0.76 mm (typical)","Die‑cut, crease and slot‑liner friendly"],
+    specs: [["Thickness","0.05–0.76 mm"],["Density","~0.7–1.0 g/cm³ (grade‑dependent)"],["Format","rolls & sheets"]],
+    usecases: ["Transformers/motors slot liners","Phase/ground insulation","Thermal gaskets"],
+  },
+
+  // —— Hand gloves ——
+  {
+    slug: "aramid-gloves",
+    title: "Heat‑Resistant Aramid Hand Gloves",
+    summary: "Cut and heat‑resistant gloves using aramid yarns and FR blends; options for coatings and lengths.",
+    hero: "/images/products/aramid-gloves.jpg",
+    brochure: "/brochures/products/aramid-gloves.pdf",
+    group: "Hand gloves",
+    tags: ["gloves","ppe","heat-resistant","cut-resistant"],
+    facets: { substrate:["aramid-blend"], feature:["heat-resistant"], industry:["ppe","infrastructure"] },
+    bullets: ["Meta/para blends; optional glass/UHMWPE reinforcement","Cuff lengths 10–18 in; palm coatings optional","Sizing S–XXL"],
+    specs: [["Composition","aramid blends (details on request)"],["Options","coated palms, doubled layers"],["Compliance","EN/ISO test data available upon request"]],
+    usecases: ["Hot work handling","Maintenance & foundry","Industrial cut protection"],
   },
 ];
 
@@ -369,7 +404,7 @@ const INDUSTRY_DB = [
     blurb: "Fire & industrial PPE, uniforms, gloves, and FR accessories.",
     img: "/images/industries/ppe.jpg",
     brochure: "/brochures/industries/ppe.pdf",
-    picks: ["armorstitch-para-thread","thermaguard-fr-blends","thermaguard-fr-fabrics"],
+    picks: ["armorstitch-para-thread","thermaguard-fr-blends","thermaguard-fr-fabrics","aramid-gloves"],
   },
   {
     slug: "defense",
@@ -396,7 +431,7 @@ const INDUSTRY_DB = [
     blurb: "Automotive, rail, aerospace interiors & insulation.",
     img: "/images/industries/mobility.jpg",
     brochure: "/brochures/industries/mobility.pdf",
-    picks: ["thermaguard-fr-fabrics","pps-needlefelt"],
+    picks: ["thermaguard-fr-fabrics","pps-needlefelt","aramid-paper"],
   },
   {
     slug: "infrastructure",
@@ -405,7 +440,7 @@ const INDUSTRY_DB = [
     blurb: "Power, renewables, switchgear and substations.",
     img: "/images/industries/infrastructure.jpg",
     brochure: "/brochures/industries/infrastructure.pdf",
-    picks: ["pps-needlefelt","ptfe-needlefelt","armorstitch-para-thread"],
+    picks: ["pps-needlefelt","ptfe-needlefelt","armorstitch-para-thread","aramid-paper"],
   },
   {
     slug: "filtration",
@@ -502,13 +537,13 @@ function Header({ onGo, route }) {
             </NavLink>
 
             <div onMouseEnter={()=>setOpen("products")} onMouseLeave={()=>setOpen("")}> 
-              <NavButton active={route.page.startsWith("product")} onClick={() => onGo(R.PRODUCTS)}>
+              <NavButton active={route.page.startsWith?.("product")} onClick={() => onGo(R.PRODUCTS)}>
                 Products <ChevronDown className="w-4 h-4 ml-1"/>
               </NavButton>
               {open === "products" && (
                 <MegaMenu title="Products">
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {PRODUCT_DB.slice(0,9).map(p => (
+                    {PRODUCT_DB.slice(0,12).map(p => (
                       <DropdownCard key={p.slug} title={p.title} blurb={p.summary} onClick={() => onGo(R.PDP(p.slug))} />
                     ))}
                   </div>
@@ -517,7 +552,7 @@ function Header({ onGo, route }) {
             </div>
 
             <div onMouseEnter={()=>setOpen("industries")} onMouseLeave={()=>setOpen("")}> 
-              <NavButton active={route.page.startsWith("industry")} onClick={() => onGo(R.INDUSTRIES)}>
+              <NavButton active={route.page.startsWith?.("industry")} onClick={() => onGo(R.INDUSTRIES)}>
                 Industries <ChevronDown className="w-4 h-4 ml-1"/>
               </NavButton>
               {open === "industries" && (
@@ -544,7 +579,7 @@ function Header({ onGo, route }) {
       {mobile && (
         <div className="md:hidden border-t border-red-600 bg-white">
           <div className="px-4 py-3 space-y-1">
-            {[["Home", R.HOME],["Products", R.PRODUCTS],["Industries", R.INDUSTRIES],["About", R.ABOUT],["Insights", R.INSIGHTS],["Contact", R.CONTACT]].map(([label, href]) => (
+            {[ ["Home", R.HOME],["Products", R.PRODUCTS],["Industries", R.INDUSTRIES],["About", R.ABOUT],["Insights", R.INSIGHTS],["Contact", R.CONTACT] ].map(([label, href]) => (
               <button key={label} className="w-full text-left px-2 py-2 rounded-lg hover:bg-red-50" onClick={() => setMobile(false) || onGo(href)}>{label}</button>
             ))}
           </div>
@@ -734,8 +769,17 @@ function SectionHeader({ title, subtitle }){
 function Products({ onGo }){
   const [q, setQ] = useState("");
   const [facet, setFacet] = useState({ substrate: "all", feature: "all", industry: "all", group: "all" });
-  const GROUPS = ["all","UD Sheets","Threads","Yarns","Nonwovens","Fabrics"];
-  const SUBSTRATES = ["all","meta-aramid","para-aramid","aramid-blend","uHMWPE","pps","ptfe"]; 
+  const GROUPS = [
+    "all",
+    "Woven fabrics",
+    "Non-woven fabrics",
+    "Yarns",
+    "Threads",
+    "UD Sheets",
+    "Aramid paper",
+    "Hand gloves",
+  ];
+  const SUBSTRATES = ["all","meta-aramid","para-aramid","aramid-blend","uHMWPE","pps","ptfe","aramid-paper"]; 
   const FEATURES = ["all","heat-resistant","high-tenacity","bonded","ptfe-coated","antistatic","chemical-resistant"]; 
   const INDUSTRIES = ["all","ppe","defense","telecom","mobility","infrastructure","filtration"]; 
 
@@ -818,7 +862,7 @@ function PDP({ slug, onGo }){
 
       {/* key specs */}
       <div className="mt-8 rounded-2xl border border-red-200 overflow-hidden">
-        <div className="px-4 py-3 bg-red-50 border-b border-red-200 text-sm font-medium">Key Specifications</div>
+        <div className="px-4 py-3 bg-red-50 border-b border-red-200 text-sm font-medium">{KEY_SPECS_LABEL}</div>
         <div className="p-4">
           <table className="w-full text-sm">
             <tbody>
@@ -1059,7 +1103,7 @@ function Footer({ onGo }){
             <div className="mt-4 text-sm text-neutral-700">High‑performance materials for PPE, mobility, telecom, infrastructure, filtration, and defense.</div>
           </div>
           <FooterCol title="Products">
-            {PRODUCT_DB.slice(0,6).map(p => <FooterLink key={p.slug} onClick={()=>onGo(R.PDP(p.slug))}>{p.title}</FooterLink>)}
+            {PRODUCT_DB.slice(0,8).map(p => <FooterLink key={p.slug} onClick={()=>onGo(R.PDP(p.slug))}>{p.title}</FooterLink>)}
             <FooterLink onClick={()=>onGo(R.PRODUCTS)}>All products</FooterLink>
           </FooterCol>
           <FooterCol title="Industries">
@@ -1111,6 +1155,11 @@ if (typeof window !== "undefined") {
     window.location.hash = "#/industries/filtration";
     const ph3 = parseHash();
     console.assert(ph3.page === "industry" && ph3.industry === "filtration", "router filtration page");
+
+    // New assertions to guard regressions
+    console.assert(KEY_SPECS_LABEL === "Key Specifications" && KEY_SPECS_LABEL.length > 6, "key specs label ok");
+    const hard = PRODUCT_DB.find(p=>p.slug==="shieldlite-hard-ud");
+    console.assert(hard && hard.variants.some(v=>v.code==="AHZ-220"), "hard UD variants include AHZ-220");
 
     window.location.hash = originalHash || "#/";
   } catch (_) {}
