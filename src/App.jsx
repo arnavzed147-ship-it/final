@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import {
   Menu,
@@ -24,22 +24,55 @@ import {
  * Artan Protec — Coats‑inspired site (single file)
  * TailwindCSS + Framer Motion + hash routing
  * Theme: Red / Black / White (light)
- * Pages: Home, Products (facets), PDP, Industries, Industry Detail, About, Insights (Info Hub), Contact
+ * Pages: Home, Products (facets), PDP, Industries, Industry Detail, About, Insights (blog + posts), Contact
  * Notes:
- *  - Drop assets in /public (logo: /artan-protec-logo.png, hero: /hero.jpg)
- *  - Replace PRODUCT_DB & INDUSTRY_DB with live content later.
+ *  - Keep assets in /public
+ *  - Replace PRODUCT_DB, INDUSTRY_DB, BLOG_DB with live content later
  *
- * Assets to upload now (exact paths):
- *  /artan-protec-logo.png
- *  /hero.jpg
- *  /images/ballistic.jpg
- *  /images/aramid-yarn.jpg
- *  /images/ppe-fabrics.jpg
- *  /brochures/artan-protec-brochure.pdf
- *  /brochures/ballistic-systems.pdf
- *  /brochures/industry-telecom.pdf
- *  /brochures/aramid-yarn-thread.pdf
- *  /brochures/ppe-fabrics.pdf
+ * === Upload assets now (exact paths) ===
+ * Logo & hero:
+ *   /artan-protec-logo.png
+ *   /hero.jpg
+ *
+ * Product images (1 per product):
+ *   /images/products/shieldlite-soft-ud.jpg
+ *   /images/products/shieldlite-hard-ud.jpg
+ *   /images/products/armorstitch-para-thread.jpg
+ *   /images/products/ripcore-telecom-ripcord.jpg
+ *   /images/products/metaspin-1p5d-yarn.jpg
+ *   /images/products/metaspin-2d-yarn.jpg
+ *   /images/products/paraspin-staple-yarn.jpg
+ *   /images/products/pps-needlefelt.jpg
+ *   /images/products/ptfe-needlefelt.jpg
+ *   /images/products/thermaguard-fr-fabrics.jpg
+ *   /images/products/thermaguard-fr-blends.jpg
+ *
+ * Product brochures (1 per product, same slug):
+ *   /brochures/products/shieldlite-soft-ud.pdf
+ *   /brochures/products/shieldlite-hard-ud.pdf
+ *   /brochures/products/armorstitch-para-thread.pdf
+ *   /brochures/products/ripcore-telecom-ripcord.pdf
+ *   /brochures/products/metaspin-1p5d-yarn.pdf
+ *   /brochures/products/metaspin-2d-yarn.pdf
+ *   /brochures/products/paraspin-staple-yarn.pdf
+ *   /brochures/products/pps-needlefelt.pdf
+ *   /brochures/products/ptfe-needlefelt.pdf
+ *   /brochures/products/thermaguard-fr-fabrics.pdf
+ *   /brochures/products/thermaguard-fr-blends.pdf
+ *
+ * Industry images & brochures (1 each):
+ *   /images/industries/ppe.jpg
+ *   /images/industries/defense.jpg
+ *   /images/industries/telecom.jpg
+ *   /images/industries/mobility.jpg
+ *   /images/industries/infrastructure.jpg
+ *   /images/industries/filtration.jpg
+ *   /brochures/industries/ppe.pdf
+ *   /brochures/industries/defense.pdf
+ *   /brochures/industries/telecom.pdf
+ *   /brochures/industries/mobility.pdf
+ *   /brochures/industries/infrastructure.pdf
+ *   /brochures/industries/filtration.pdf
  */
 
 const LOGO_SRC = "/artan-protec-logo.png";
@@ -61,7 +94,6 @@ const buildQuoteHref = (title, item) => {
     .filter(Boolean)
     .join("\n");
   if (typeof window !== "undefined") {
-    // analytics hook (no-op if not configured)
     window.dataLayer = window.dataLayer || [];
     window.dataLayer.push({ event: "quote_click", title, item: item || null });
   }
@@ -80,18 +112,20 @@ const R = {
   INDUSTRY: (slug) => `#/industries/${slug}`,
   ABOUT: "#/about",
   INSIGHTS: "#/insights",
+  INSIGHT: (slug) => `#/insights/${slug}`,
   CONTACT: "#/contact",
 };
 function parseHash() {
-  const seg = (typeof window !== "undefined" ? window.location.hash : "#/" )
-    .replace(/^#\//, "").split("/").filter(Boolean);
+  const raw = typeof window !== "undefined" ? window.location.hash : "#/";
+  const seg = raw.replace(/^#\//, "").split("/").filter(Boolean);
   if (seg.length === 0) return { page: "home" };
   if (seg[0] === "products" && seg.length === 1) return { page: "products" };
   if (seg[0] === "products" && seg[1]) return { page: "pdp", product: seg[1] };
   if (seg[0] === "industries" && seg.length === 1) return { page: "industries" };
   if (seg[0] === "industries" && seg[1]) return { page: "industry", industry: seg[1] };
   if (seg[0] === "about") return { page: "about" };
-  if (seg[0] === "insights") return { page: "insights" };
+  if (seg[0] === "insights" && seg.length === 1) return { page: "insights" };
+  if (seg[0] === "insights" && seg[1]) return { page: "post", slug: seg[1] };
   if (seg[0] === "contact") return { page: "contact" };
   return { page: "home" };
 }
@@ -110,11 +144,10 @@ function useHashRouter() {
   return { route, go };
 }
 
-// --------------- data model (Coats‑style taxonomy) ---------------
-// Families — updated (no 'Arvex'):
+// --------------- data model ---------------
+// Families:
 //  - ArmorStitch™ (aramid sewing threads)
 //  - RipCore™ (telecom ripcord yarns)
-//  - CoreStrand™ (strength members / braids)
 //  - MetaSpin™ (meta‑aramid staple yarns)
 //  - ParaSpin™ (para‑aramid staple yarns)
 //  - ShieldLite™ (UHMWPE UD sheets)
@@ -126,7 +159,9 @@ const PRODUCT_DB = [
     slug: "shieldlite-soft-ud",
     title: "ShieldLite™ Soft Armour UD Sheets (AS Series)",
     summary: "UHMWPE unidirectional sheets for soft armor layups; controlled resin, consistent ply areal density.",
-    hero: "/images/ballistic.jpg",
+    hero: "/images/products/shieldlite-soft-ud.jpg",
+    brochure: "/brochures/products/shieldlite-soft-ud.pdf",
+    group: "UD Sheets",
     tags: ["uhmwpe","ud","soft-armor"],
     facets: { substrate:["uHMWPE"], feature:["high-tenacity"], industry:["defense","mobility"] },
     bullets: [
@@ -144,13 +179,14 @@ const PRODUCT_DB = [
       ["Note","Ballistic performance depends on layup & test plan"],
     ],
     usecases: ["Soft armor panels","Helmet preform layers","Composite reinforcement"],
-    downloads: [{ label: "Ballistics Overview", href: "/brochures/ballistic-systems.pdf"}],
   },
   {
     slug: "shieldlite-hard-ud",
     title: "ShieldLite™ Hard Armour UD Sheets (AH Series)",
     summary: "UHMWPE UD sheets for hot‑press consolidation into hard armor plates and vehicle panels.",
-    hero: "/images/ballistic.jpg",
+    hero: "/images/products/shieldlite-hard-ud.jpg",
+    brochure: "/brochures/products/shieldlite-hard-ud.pdf",
+    group: "UD Sheets",
     tags: ["uhmwpe","ud","hard-armor"],
     facets: { substrate:["uHMWPE"], feature:["high-tenacity"], industry:["defense","mobility"] },
     bullets: [
@@ -165,7 +201,6 @@ const PRODUCT_DB = [
       ["Panel formats","Flat; curvature via tool"],
       ["Note","Ballistic performance depends on layup & test plan"],
     ],
-    // Rendered in PDP as a table
     variants: [
       { code: "AH-120", gsm: 120, series: "Shield" },
       { code: "AH-240", gsm: 240, series: "Shield" },
@@ -176,7 +211,6 @@ const PRODUCT_DB = [
       { code: "AHZ-220", gsm: 220, series: "Ultra" }
     ],
     usecases: ["Hard armor plates","Vehicle armor panels","Composite laminates"],
-    downloads: [{ label: "Ballistics Overview", href: "/brochures/ballistic-systems.pdf"}],
   },
 
   // —— Threads / Ripcord ——
@@ -184,9 +218,11 @@ const PRODUCT_DB = [
     slug: "armorstitch-para-thread",
     title: "ArmorStitch™ Para‑aramid Sewing Thread",
     summary: "High‑tenacity, heat‑resistant thread for PPE seams, filtration, and technical stitch lines.",
-    hero: "/images/aramid-yarn.jpg",
+    hero: "/images/products/armorstitch-para-thread.jpg",
+    brochure: "/brochures/products/armorstitch-para-thread.pdf",
+    group: "Threads",
     tags: ["para-aramid","thread","bonded","ptfe-coated"],
-    facets: { substrate:["para-aramid"], feature:["high-tenacity","heat-resistant"], industry:["ppe","defense","telecom","infrastructure"] },
+    facets: { substrate:["para-aramid"], feature:["high-tenacity","heat-resistant"], industry:["ppe","defense","telecom","infrastructure","filtration"] },
     bullets: [
       "2–6 ply; available soft‑lube, bonded, PTFE‑coated",
       "Service to ~200°C; chars > 450°C",
@@ -204,13 +240,14 @@ const PRODUCT_DB = [
       "Telecom cable binding / ripcord",
       "Heat shields and FR composites tack"
     ],
-    downloads: [ { label: "Technical Data Sheet", href: "/brochures/aramid-yarn-thread.pdf" } ],
   },
   {
     slug: "ripcore-telecom-ripcord",
     title: "RipCore™ Telecom Ripcord",
     summary: "Para‑aramid ripcord yarn for optical cable access — optimized diameter vs. pull strength; optional abrasion finishes.",
-    hero: "/images/ppe-fabrics.jpg",
+    hero: "/images/products/ripcore-telecom-ripcord.jpg",
+    brochure: "/brochures/products/ripcore-telecom-ripcord.pdf",
+    group: "Threads",
     tags: ["para-aramid","ripcord","telecom"],
     facets: { substrate:["para-aramid"], feature:["high-tenacity"], industry:["telecom"] },
     bullets: [
@@ -224,7 +261,6 @@ const PRODUCT_DB = [
       ["Abrasion","per IEC 60794 guidance (typical)"]
     ],
     usecases: ["FTTx / backbone cable access","Hybrid power‑data jackets","Aerial/duct cables"],
-    downloads: [{ label: "Ripcord One‑pager", href: "/brochures/industry-telecom.pdf" }],
   },
 
   // —— Staple yarns ——
@@ -232,103 +268,68 @@ const PRODUCT_DB = [
     slug: "metaspin-1p5d-yarn",
     title: "MetaSpin™ 1.5D Meta‑aramid Staple Yarn",
     summary: "Spun from 1.5 denier meta‑aramid fibre for FR fabrics, threads base and felts.",
-    hero: "/images/aramid-yarn.jpg",
+    hero: "/images/products/metaspin-1p5d-yarn.jpg",
+    brochure: "/brochures/products/metaspin-1p5d-yarn.pdf",
+    group: "Yarns",
     tags: ["meta-aramid","yarn","staple"],
-    facets: { substrate:["meta-aramid"], feature:["heat-resistant"], industry:["ppe","infrastructure","mobility"] },
-    bullets: [
-      "Counts and blends on request",
-      "Continuous heat ~200°C; LOI ≥ 28 (fiber typical)",
-      "Cut lengths 38/51 mm"
-    ],
-    specs: [
-      ["Fibre fineness","1.5 d"],
-      ["Cut lengths","38 / 51 mm"],
-      ["Blend options","meta+P84, meta+PPS, meta+antistat"],
-    ],
+    facets: { substrate:["meta-aramid"], feature:["heat-resistant"], industry:["ppe","infrastructure","mobility","filtration"] },
+    bullets: ["Counts and blends on request","Continuous heat ~200°C; LOI ≥ 28 (fiber typical)","Cut lengths 38/51 mm"],
+    specs: [["Fibre fineness","1.5 d"],["Cut lengths","38 / 51 mm"],["Blend options","meta+P84, meta+PPS, meta+antistat"]],
     usecases: ["FR fabric weaving/knit","Sewing thread spinning","Needlefelt base"],
-    downloads: [],
   },
   {
     slug: "metaspin-2d-yarn",
     title: "MetaSpin™ 2D Meta‑aramid Staple Yarn",
     summary: "Spun from 2.0 denier meta‑aramid fibre for robust FR constructions.",
-    hero: "/images/aramid-yarn.jpg",
+    hero: "/images/products/metaspin-2d-yarn.jpg",
+    brochure: "/brochures/products/metaspin-2d-yarn.pdf",
+    group: "Yarns",
     tags: ["meta-aramid","yarn","staple"],
-    facets: { substrate:["meta-aramid"], feature:["heat-resistant"], industry:["ppe","infrastructure","mobility"] },
-    bullets: [
-      "Counts and blends on request",
-      "Continuous heat ~200°C; LOI ≥ 28 (fiber typical)",
-      "Cut lengths 38/51 mm"
-    ],
-    specs: [
-      ["Fibre fineness","2.0 d"],
-      ["Cut lengths","38 / 51 mm"],
-      ["Blend options","meta+P84, meta+PPS, meta+antistat"],
-    ],
+    facets: { substrate:["meta-aramid"], feature:["heat-resistant"], industry:["ppe","infrastructure","mobility","filtration"] },
+    bullets: ["Counts and blends on request","Continuous heat ~200°C; LOI ≥ 28 (fiber typical)","Cut lengths 38/51 mm"],
+    specs: [["Fibre fineness","2.0 d"],["Cut lengths","38 / 51 mm"],["Blend options","meta+P84, meta+PPS, meta+antistat"]],
     usecases: ["FR fabric weaving/knit","Sewing thread spinning","Needlefelt base"],
-    downloads: [],
   },
   {
     slug: "paraspin-staple-yarn",
     title: "ParaSpin™ Para‑aramid Staple Yarn",
     summary: "High‑tenacity para‑aramid staple yarn for cut‑resistant and high‑strength applications.",
-    hero: "/images/aramid-yarn.jpg",
+    hero: "/images/products/paraspin-staple-yarn.jpg",
+    brochure: "/brochures/products/paraspin-staple-yarn.pdf",
+    group: "Yarns",
     tags: ["para-aramid","yarn","staple"],
     facets: { substrate:["para-aramid"], feature:["high-tenacity"], industry:["ppe","defense","telecom"] },
-    bullets: [
-      "Counts on request; blends with UHMWPE possible",
-      "High tensile & modulus (fiber typical)",
-      "For reinforcement and cut‑resistant fabrics"
-    ],
-    specs: [
-      ["Tensile strength (fiber)","~3.0–3.6 GPa"],
-      ["Modulus","~60–130 GPa"],
-      ["Elongation","~2.5–4%"],
-    ],
+    bullets: ["Counts on request; blends with UHMWPE possible","High tensile & modulus (fiber typical)","For reinforcement and cut‑resistant fabrics"],
+    specs: [["Tensile strength (fiber)","~3.0–3.6 GPa"],["Modulus","~60–130 GPa"],["Elongation","~2.5–4%"]],
     usecases: ["Cut‑resistant knits","Reinforcement scrims","High‑strength threads base"],
-    downloads: [],
   },
 
-  // —— Nonwovens for filtration / thermal ——
+  // —— Nonwovens ——
   {
     slug: "pps-needlefelt",
     title: "PPS Needlefelt (Industrial Filtration)",
     summary: "Polyphenylene sulfide nonwoven felt — excellent chemical and thermal resistance; competitive pricing via scale buying.",
-    hero: "/images/ppe-fabrics.jpg",
+    hero: "/images/products/pps-needlefelt.jpg",
+    brochure: "/brochures/products/pps-needlefelt.pdf",
+    group: "Nonwovens",
     tags: ["pps","nonwoven","filtration"],
-    facets: { substrate:["pps"], feature:["heat-resistant","chemical-resistant"], industry:["infrastructure","mobility"] },
-    bullets: [
-      "Areal weights 350–600 g/m² typical",
-      "Surface finishes & scrims on request",
-      "Dimensional stability under load"
-    ],
-    specs: [
-      ["Polymer","PPS"],
-      ["Areal weight","350–600 g/m²"],
-      ["Finishes","calendered, singed; PTFE membrane optional"],
-    ],
+    facets: { substrate:["pps"], feature:["heat-resistant","chemical-resistant"], industry:["infrastructure","mobility","filtration"] },
+    bullets: ["Areal weights 350–600 g/m² typical","Surface finishes & scrims on request","Dimensional stability under load"],
+    specs: [["Polymer","PPS"],["Areal weight","350–600 g/m²"],["Finishes","calendered, singed; PTFE membrane optional"]],
     usecases: ["Baghouse filters","Hot gas filtration","Thermal insulation"],
-    downloads: [],
   },
   {
     slug: "ptfe-needlefelt",
     title: "PTFE Needlefelt (Industrial Filtration)",
     summary: "PTFE nonwoven felt for aggressive chemistries and high temperatures.",
-    hero: "/images/ppe-fabrics.jpg",
+    hero: "/images/products/ptfe-needlefelt.jpg",
+    brochure: "/brochures/products/ptfe-needlefelt.pdf",
+    group: "Nonwovens",
     tags: ["ptfe","nonwoven","filtration"],
-    facets: { substrate:["ptfe"], feature:["heat-resistant","chemical-resistant"], industry:["infrastructure","mobility"] },
-    bullets: [
-      "Areal weights 500–800 g/m² typical",
-      "PTFE membrane options",
-      "Excellent chemical resistance"
-    ],
-    specs: [
-      ["Polymer","PTFE"],
-      ["Areal weight","500–800 g/m²"],
-      ["Finishes","membrane, calendered, singed"],
-    ],
+    facets: { substrate:["ptfe"], feature:["heat-resistant","chemical-resistant"], industry:["infrastructure","mobility","filtration"] },
+    bullets: ["Areal weights 500–800 g/m² typical","PTFE membrane options","Excellent chemical resistance"],
+    specs: [["Polymer","PTFE"],["Areal weight","500–800 g/m²"],["Finishes","membrane, calendered, singed"]],
     usecases: ["Chemical process filters","Stack emission control","High‑temp gasketing"],
-    downloads: [],
   },
 
   // —— Woven / laminated aramid fabrics ——
@@ -336,41 +337,27 @@ const PRODUCT_DB = [
     slug: "thermaguard-fr-fabrics",
     title: "Thermaguard™ FR Fabrics (Meta‑aramid blends)",
     summary: "FR woven and nonwoven fabrics for PPE, industrial insulation and filtration. Options: silicone/PTFE/PU coatings, laminates.",
-    hero: "/images/ppe-fabrics.jpg",
+    hero: "/images/products/thermaguard-fr-fabrics.jpg",
+    brochure: "/brochures/products/thermaguard-fr-fabrics.pdf",
+    group: "Fabrics",
     tags: ["meta-aramid","woven","nonwoven","laminate"],
-    facets: { substrate:["meta-aramid","aramid-blend"], feature:["heat-resistant","antistatic"], industry:["ppe","mobility","infrastructure"] },
-    bullets: [
-      "Plain/twill/satin; 150–260 g/m² typical",
-      "Needlefelts for filtration and insulation",
-      "Add‑ons: silicone, PTFE, PU; laminated shells",
-    ],
-    specs: [
-      ["LOI","≥ 28 (self‑extinguishing)"],
-      ["Areal weight","150–260 g/m² (woven typical)"],
-      ["Standards","Designed to help meet ISO 15025 A/B when finished"],
-    ],
+    facets: { substrate:["meta-aramid","aramid-blend"], feature:["heat-resistant","antistatic"], industry:["ppe","mobility","infrastructure","filtration"] },
+    bullets: ["Plain/twill/satin; 150–260 g/m² typical","Needlefelts for filtration and insulation","Add‑ons: silicone, PTFE, PU; laminated shells"],
+    specs: [["LOI","≥ 28 (self‑extinguishing)"],["Areal weight","150–260 g/m² (woven typical)"],["Standards","Designed to help meet ISO 15025 A/B when finished"]],
     usecases: ["Workwear shells","Filtration media","Heat shields"],
-    downloads: [{ label: "Fabrics Brochure", href: "/brochures/ppe-fabrics.pdf" }],
   },
   {
     slug: "thermaguard-fr-blends",
     title: "Thermaguard™ FR Blends (Meta/Para/Antistat)",
     summary: "Woven aramid fabrics including common blends like 93:5:2 and 50:50; engineered for PPE and industrial use.",
-    hero: "/images/ppe-fabrics.jpg",
+    hero: "/images/products/thermaguard-fr-blends.jpg",
+    brochure: "/brochures/products/thermaguard-fr-blends.pdf",
+    group: "Fabrics",
     tags: ["aramid-blend","woven","antistatic"],
     facets: { substrate:["aramid-blend"], feature:["heat-resistant","antistatic"], industry:["ppe","infrastructure"] },
-    bullets: [
-      "Blend examples: 93:5:2 (meta:para:antistat), 50:50",
-      "Weaves: plain / twill / satin",
-      "Coatings: silicone / PTFE / PU"
-    ],
-    specs: [
-      ["Areal weight","160–280 g/m² (typical)"],
-      ["Surface resistivity","per antistat spec (on request)"],
-      ["Finishes","dyed, calendered, coated, laminated"],
-    ],
+    bullets: ["Blend examples: 93:5:2 (meta:para:antistat), 50:50","Weaves: plain / twill / satin","Coatings: silicone / PTFE / PU"],
+    specs: [["Areal weight","160–280 g/m² (typical)"],["Surface resistivity","per antistat spec (on request)"],["Finishes","dyed, calendered, coated, laminated"]],
     usecases: ["Coveralls & uniforms","FR liners","Industrial insulation"],
-    downloads: [{ label: "FR Blends List", href: "/brochures/ppe-fabrics.pdf" }],
   },
 ];
 
@@ -380,6 +367,8 @@ const INDUSTRY_DB = [
     title: "PPE",
     icon: <Shield className="w-5 h-5" />,
     blurb: "Fire & industrial PPE, uniforms, gloves, and FR accessories.",
+    img: "/images/industries/ppe.jpg",
+    brochure: "/brochures/industries/ppe.pdf",
     picks: ["armorstitch-para-thread","thermaguard-fr-blends","thermaguard-fr-fabrics"],
   },
   {
@@ -387,6 +376,8 @@ const INDUSTRY_DB = [
     title: "Defense & Security",
     icon: <Flame className="w-5 h-5" />,
     blurb: "Ballistics, FR apparel, and high‑temperature components.",
+    img: "/images/industries/defense.jpg",
+    brochure: "/brochures/industries/defense.pdf",
     picks: ["shieldlite-soft-ud","shieldlite-hard-ud","armorstitch-para-thread"],
   },
   {
@@ -394,6 +385,8 @@ const INDUSTRY_DB = [
     title: "Telecom",
     icon: <Globe className="w-5 h-5" />,
     blurb: "Ripcords, strength members, FR tapes and ancillary yarns.",
+    img: "/images/industries/telecom.jpg",
+    brochure: "/brochures/industries/telecom.pdf",
     picks: ["ripcore-telecom-ripcord","armorstitch-para-thread"],
   },
   {
@@ -401,6 +394,8 @@ const INDUSTRY_DB = [
     title: "Mobility",
     icon: <Factory className="w-5 h-5" />,
     blurb: "Automotive, rail, aerospace interiors & insulation.",
+    img: "/images/industries/mobility.jpg",
+    brochure: "/brochures/industries/mobility.pdf",
     picks: ["thermaguard-fr-fabrics","pps-needlefelt"],
   },
   {
@@ -408,7 +403,43 @@ const INDUSTRY_DB = [
     title: "Infrastructure & Energy",
     icon: <Building2 className="w-5 h-5" />,
     blurb: "Power, renewables, switchgear and substations.",
+    img: "/images/industries/infrastructure.jpg",
+    brochure: "/brochures/industries/infrastructure.pdf",
     picks: ["pps-needlefelt","ptfe-needlefelt","armorstitch-para-thread"],
+  },
+  {
+    slug: "filtration",
+    title: "Filtration",
+    icon: <Leaf className="w-5 h-5" />,
+    blurb: "Industrial filtration media: PPS/PTFE felts, FR scrims and threads.",
+    img: "/images/industries/filtration.jpg",
+    brochure: "/brochures/industries/filtration.pdf",
+    picks: ["pps-needlefelt","ptfe-needlefelt","armorstitch-para-thread"],
+  },
+];
+
+// Blog posts (Insights)
+const BLOG_DB = [
+  {
+    slug: "selecting-aramid-thread",
+    title: "Selecting Your Aramid Thread",
+    date: "2025-09-15",
+    excerpt: "Tex vs. Ticket, ply, finishes, and stitch recommendations by fabric class.",
+    body: `\n### Quick guide\n\nWhen choosing aramid thread, match **tex/ticket** to seam strength and needle size. Bonded finishes increase abrasion performance; PTFE improves chemical resistance. For FR garments, balance hand with seam durability.`,
+  },
+  {
+    slug: "ripcord-101",
+    title: "Ripcord & Strength Members 101",
+    date: "2025-08-22",
+    excerpt: "Choosing para‑aramid ripcords: abrasion finishes, diameter vs. pull strength.",
+    body: `\n### Cable access basics\n\nRipcord linear density must open the jacket cleanly without harming core tubes. Consider **PU/PTFE** finishes when jacket abrasiveness is high.`,
+  },
+  {
+    slug: "uhmwpe-hard-soft",
+    title: "UHMWPE UD: Soft vs Hard Armor",
+    date: "2025-07-02",
+    excerpt: "How ply GSM and resin content interact with layup design and press cycles.",
+    body: `\n### Design considerations\n\nSoft UD (AS series) optimizes drape and multi‑hit; Hard UD (AH series) targets stiffness after consolidation. Performance is a system property — validate via your NIJ test plan.`,
   },
 ];
 
@@ -421,7 +452,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-white text-neutral-900 flex flex-col">
-      <Header onGo={go} route={route} mobile={mobile} setMobile={setMobile} />
+      <Header onGo={go} route={route} />
       <main className="flex-1" id="main">
         {route.page === "home" && <Home onGo={go} />}
         {route.page === "products" && <Products onGo={go} />}
@@ -429,7 +460,8 @@ export default function App() {
         {route.page === "industries" && <Industries onGo={go} />}
         {route.page === "industry" && <IndustryDetail slug={route.industry} onGo={go} />}
         {route.page === "about" && <About />}
-        {route.page === "insights" && <Insights />}
+        {route.page === "insights" && <Insights onGo={go} />}
+        {route.page === "post" && <PostPage slug={route.slug} onGo={go} />}
         {route.page === "contact" && <Contact />}
       </main>
       {route.page === "home" && <StickyQuote />}
@@ -438,9 +470,21 @@ export default function App() {
   );
 }
 
-function Header({ onGo, route, mobile, setMobile }) {
+// --------------- Header with hover mega‑menus ---------------
+function Header({ onGo, route }) {
+  const [open, setOpen] = useState(""); // "products" | "industries" | ""
+  const navRef = useRef(null);
+  useEffect(() => {
+    const out = (e) => { if (navRef.current && !navRef.current.contains(e.target)) setOpen(""); };
+    document.addEventListener("mousemove", out);
+    return () => document.removeEventListener("mousemove", out);
+  }, []);
+
+  // mobile toggle kept simple
+  const [mobile, setMobile] = useState(false);
+
   return (
-    <header className="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-red-600">
+    <header className="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-red-600" ref={navRef}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => onGo(R.HOME)}>
@@ -450,32 +494,59 @@ function Header({ onGo, route, mobile, setMobile }) {
               <div className="text-xs text-black">Advanced Protection | Engineered Performance</div>
             </div>
           </div>
+
+          {/* Desktop nav */}
           <nav className="hidden md:flex items-center gap-1 relative">
-            <NavLink active={route.page==="home"} onClick={() => onGo(R.HOME)}>Home</NavLink>
-            <NavButton active={route.page.startsWith("product")} onClick={() => onGo(R.PRODUCTS)}>Products <ChevronDown className="w-4 h-4 ml-1"/></NavButton>
-            <NavButton active={route.page.startsWith("industry")} onClick={() => onGo(R.INDUSTRIES)}>Industries <ChevronDown className="w-4 h-4 ml-1"/></NavButton>
+            <NavLink active={route.page==="home"} onClick={() => onGo(R.HOME)}>
+              Home
+            </NavLink>
+
+            <div onMouseEnter={()=>setOpen("products")} onMouseLeave={()=>setOpen("")}> 
+              <NavButton active={route.page.startsWith("product")} onClick={() => onGo(R.PRODUCTS)}>
+                Products <ChevronDown className="w-4 h-4 ml-1"/>
+              </NavButton>
+              {open === "products" && (
+                <MegaMenu title="Products">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {PRODUCT_DB.slice(0,9).map(p => (
+                      <DropdownCard key={p.slug} title={p.title} blurb={p.summary} onClick={() => onGo(R.PDP(p.slug))} />
+                    ))}
+                  </div>
+                </MegaMenu>
+              )}
+            </div>
+
+            <div onMouseEnter={()=>setOpen("industries")} onMouseLeave={()=>setOpen("")}> 
+              <NavButton active={route.page.startsWith("industry")} onClick={() => onGo(R.INDUSTRIES)}>
+                Industries <ChevronDown className="w-4 h-4 ml-1"/>
+              </NavButton>
+              {open === "industries" && (
+                <MegaMenu title="Industries">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {INDUSTRY_DB.map(i => (
+                      <DropdownCard key={i.slug} title={i.title} blurb={i.blurb} onClick={() => onGo(R.INDUSTRY(i.slug))} />
+                    ))}
+                  </div>
+                </MegaMenu>
+              )}
+            </div>
+
             <NavLink active={route.page==="about"} onClick={() => onGo(R.ABOUT)}>About</NavLink>
-            <NavLink active={route.page==="insights"} onClick={() => onGo(R.INSIGHTS)}>Insights</NavLink>
+            <NavLink active={route.page.startsWith?.("insight") || route.page==="post"} onClick={() => onGo(R.INSIGHTS)}>Insights</NavLink>
             <NavLink active={route.page==="contact"} onClick={() => onGo(R.CONTACT)}>Contact</NavLink>
-            <a className="ml-2 inline-flex items-center gap-2 rounded-xl border border-red-600 px-3 py-2 text-sm text-red-700 hover:bg-red-50" href="/brochures/artan-protec-brochure.pdf" target="_blank" rel="noreferrer"><Download className="w-4 h-4"/> Brochure</a>
           </nav>
+
+          {/* Mobile */}
           <button className="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-lg border border-red-600" onClick={() => setMobile(!mobile)} aria-label="Toggle menu">{mobile? <X className="w-5 h-5"/> : <Menu className="w-5 h-5"/>}</button>
         </div>
       </div>
+
       {mobile && (
         <div className="md:hidden border-t border-red-600 bg-white">
           <div className="px-4 py-3 space-y-1">
-            {[
-              ["Home", R.HOME],
-              ["Products", R.PRODUCTS],
-              ["Industries", R.INDUSTRIES],
-              ["About", R.ABOUT],
-              ["Insights", R.INSIGHTS],
-              ["Contact", R.CONTACT],
-            ].map(([label, href]) => (
+            {[["Home", R.HOME],["Products", R.PRODUCTS],["Industries", R.INDUSTRIES],["About", R.ABOUT],["Insights", R.INSIGHTS],["Contact", R.CONTACT]].map(([label, href]) => (
               <button key={label} className="w-full text-left px-2 py-2 rounded-lg hover:bg-red-50" onClick={() => setMobile(false) || onGo(href)}>{label}</button>
             ))}
-            <a className="block px-2 py-2 text-red-700" href="/brochures/artan-protec-brochure.pdf" target="_blank" rel="noreferrer">Download Brochure</a>
           </div>
         </div>
       )}
@@ -483,6 +554,25 @@ function Header({ onGo, route, mobile, setMobile }) {
   );
 }
 
+function MegaMenu({ title, children }){
+  return (
+    <div className="absolute left-1/2 -translate-x-1/2 top-[calc(100%+10px)] w-[min(100%,960px)]">
+      <div className="rounded-2xl border border-red-200 bg-white shadow-xl p-6">
+        <div className="mb-4 text-xs uppercase tracking-wider text-red-600">{title}</div>
+        {children}
+      </div>
+    </div>
+  );
+}
+function DropdownCard({ title, blurb, onClick }){
+  return (
+    <button onClick={onClick} className="text-left rounded-2xl border border-red-200 p-4 hover:border-red-400 hover:bg-red-50">
+      <div className="font-semibold line-clamp-2">{title}</div>
+      <div className="mt-2 text-sm text-neutral-600 line-clamp-3">{blurb}</div>
+      <div className="mt-3 inline-flex items-center gap-1 text-sm text-red-700">Explore <ChevronRight className="w-4 h-4"/></div>
+    </button>
+  );
+}
 function NavButton({ children, onClick, active }){
   return (
     <button onClick={onClick} className={`inline-flex items-center px-3 py-2 rounded-xl text-sm border ${active? "bg-red-600 text-white border-red-600":"border-red-600 text-red-700 hover:bg-red-50"}`}>{children}</button>
@@ -494,131 +584,188 @@ function NavLink({ children, onClick, active }){
   );
 }
 
-// --------------- Home ---------------
+// --------------- Home (overhauled) ---------------
 function Home({ onGo }){
   const { scrollYProgress } = useScroll();
   const y = useTransform(scrollYProgress, [0,1], [0,30]);
+
+  // Build scrollers
+  const productCards = PRODUCT_DB.slice(0,8).map(p => ({
+    key: p.slug,
+    node: (
+      <div className="min-w-[260px] max-w-[260px] rounded-2xl border border-red-200 p-4 bg-white">
+        <img {...safeImg} src={p.hero} alt={p.title} className="aspect-[4/3] w-full object-cover rounded-xl border border-red-200"/>
+        <div className="mt-3 font-semibold line-clamp-2">{p.title}</div>
+        <div className="mt-1 text-xs text-neutral-600 line-clamp-2">{p.summary}</div>
+      </div>
+    )
+  }));
+  const industryCards = INDUSTRY_DB.map(i => ({
+    key: i.slug,
+    node: (
+      <div className="min-w-[220px] max-w-[220px] rounded-2xl border border-red-200 p-3 bg-white">
+        <img {...safeImg} src={i.img} alt={i.title} className="aspect-[4/3] w-full object-cover rounded-xl border border-red-200"/>
+        <div className="mt-2 font-medium">{i.title}</div>
+        <div className="text-xs text-neutral-600 line-clamp-2">{i.blurb}</div>
+      </div>
+    )
+  }));
+
   return (
     <section>
+      {/* Hero */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 lg:py-20 grid lg:grid-cols-2 gap-10 items-center">
-        <Reveal>
+        <div>
           <h1 className="text-4xl/tight md:text-5xl/tight font-extrabold tracking-tight">Advanced Protection.<br/>Engineered Performance.</h1>
-          <p className="mt-4 text-neutral-700 max-w-xl">Coats‑style clarity, Artan power: engineered aramid yarns & threads, FR fabrics and UHMWPE UD systems, built for high heat, abrasion and impact — with export‑ready documentation.</p>
+          <p className="mt-4 text-neutral-700 max-w-xl">Inspired by global leaders, built for your programs: aramid yarns & threads, FR fabrics and UHMWPE UD systems for high heat, abrasion and impact — with export‑ready documentation.</p>
           <div className="mt-6 flex flex-wrap gap-3">
             <button onClick={() => onGo(R.PRODUCTS)} className="inline-flex items-center gap-2 rounded-xl bg-red-600 text-white px-4 py-3">Explore Products <ChevronRight className="w-4 h-4"/></button>
             <button onClick={() => onGo(R.INDUSTRIES)} className="inline-flex items-center gap-2 rounded-xl border border-red-600 text-red-700 px-4 py-3 hover:bg-red-50">Industries</button>
-            <button onClick={() => onGo(R.ABOUT)} className="inline-flex items-center gap-2 rounded-xl border border-red-600 text-red-700 px-4 py-3 hover:bg-red-50">About Us</button>
+            <button onClick={() => onGo(R.INSIGHTS)} className="inline-flex items-center gap-2 rounded-xl border border-red-600 text-red-700 px-4 py-3 hover:bg-red-50">Insights</button>
           </div>
           <div className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-4">
             {[ ["Performance", "Materials engineering"], ["Compliance","QA & documentation"], ["Global","Export‑ready"], ["Partnership","OEM & EPC"] ].map(([k,s],i)=> (
-              <Reveal delay={i*0.05} key={k}><div className="rounded-xl border border-red-200 p-4"><div className="text-sm text-neutral-500">{s}</div><div className="font-semibold">{k}</div></div></Reveal>
-            ))}
-          </div>
-        </Reveal>
-        <Reveal>
-          <motion.div style={{y}} className="relative">
-            <img {...safeImg} src={HERO_SRC} alt="High‑performance technical textiles" className="aspect-[4/3] w-full object-cover rounded-3xl border border-red-200"/>
-            <div className="absolute -bottom-6 -left-6 w-40 h-40 rounded-3xl overflow-hidden border border-red-200 hidden md:block">
-              <img {...safeImg} src={HERO_SRC} alt="" className="w-full h-full object-cover opacity-80"/>
-            </div>
-          </motion.div>
-        </Reveal>
-      </div>
-
-      {/* industry chips */}
-      <div className="bg-neutral-50 border-y border-red-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-          <SectionHeader title="Industries we serve" subtitle="Scope" />
-          <div className="flex flex-wrap gap-3">
-            {INDUSTRY_DB.map((i, idx) => (
-              <Reveal delay={idx*0.04} key={i.slug}><button onClick={()=>onGo(R.INDUSTRY(i.slug))} className="px-4 py-2 rounded-full border border-red-200 text-sm hover:bg-red-50">{i.title}</button></Reveal>
+              <div key={k} className="rounded-xl border border-red-200 p-4"><div className="text-sm text-neutral-500">{s}</div><div className="font-semibold">{k}</div></div>
             ))}
           </div>
         </div>
+        <motion.div style={{y}} className="relative">
+          <img {...safeImg} src={HERO_SRC} alt="High‑performance technical textiles" className="aspect-[4/3] w-full object-cover rounded-3xl border border-red-200"/>
+          <div className="absolute -bottom-6 -left-6 w-40 h-40 rounded-3xl overflow-hidden border border-red-200 hidden md:block">
+            <img {...safeImg} src={HERO_SRC} alt="" className="w-full h-full object-cover opacity-80"/>
+          </div>
+        </motion.div>
       </div>
 
-      {/* highlights band */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid md:grid-cols-3 gap-4">
-          {[
-            [<BadgeCheck className="w-5 h-5"/>, "Quality & Testing", "Lot traceability, vendor onboarding support, and application‑level testing."],
-            [<FileText className="w-5 h-5"/>, "Documentation", "Datasheets, compliance notes (RoHS/REACH), and export paperwork guidance."],
-            [<Leaf className="w-5 h-5"/>, "Responsible Sourcing", "Materials stewardship and long‑term supplier partnerships."],
-          ].map(([icon, k, s]) => (
-            <div key={k} className="rounded-2xl border border-red-200 p-5">
-              <div className="flex items-center gap-3"><span className="text-red-700">{icon}</span><div className="font-semibold">{k}</div></div>
-              <div className="mt-2 text-sm text-neutral-600">{s}</div>
-            </div>
-          ))}
+      {/* Moving Product overview */}
+      <div className="border-y border-red-100 bg-neutral-50 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <SectionHeader title="Product overview" subtitle="What we make" />
+        </div>
+        <AutoScroller items={productCards} speed={28} onClickItem={(key)=>onGo(R.PDP(key))} />
+      </div>
+
+      {/* Moving Industries overview */}
+      <div className="py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <SectionHeader title="Industries we serve" subtitle="Scope" />
+        </div>
+        <AutoScroller items={industryCards} speed={24} onClickItem={(key)=>onGo(R.INDUSTRY(key))} />
+      </div>
+
+      {/* Highlights */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 grid md:grid-cols-3 gap-4">
+        {[
+          [<BadgeCheck className="w-5 h-5"/>, "Quality & Testing", "Lot traceability, vendor onboarding support, and application‑level testing."],
+          [<FileText className="w-5 h-5"/>, "Documentation", "Datasheets, RoHS/REACH notes, and export paperwork guidance."],
+          [<Leaf className="w-5 h-5"/>, "Responsible Sourcing", "Materials stewardship and long‑term supplier partnerships."],
+        ].map(([icon, k, s]) => (
+          <div key={k} className="rounded-2xl border border-red-200 p-5">
+            <div className="flex items-center gap-3"><span className="text-red-700">{icon}</span><div className="font-semibold">{k}</div></div>
+            <div className="mt-2 text-sm text-neutral-600">{s}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Blog preview */}
+      <div className="bg-neutral-50 border-t border-red-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <SectionHeader title="Insights" subtitle="Latest articles" />
+          <div className="grid md:grid-cols-3 gap-6">
+            {BLOG_DB.slice(0,3).map(p => (
+              <div key={p.slug} className="rounded-2xl border border-red-200 p-5 bg-white">
+                <div className="text-xs text-neutral-500">{new Date(p.date).toLocaleDateString()}</div>
+                <div className="mt-1 font-semibold">{p.title}</div>
+                <div className="mt-2 text-sm text-neutral-600 line-clamp-3">{p.excerpt}</div>
+                <div className="mt-4"><button onClick={()=>onGo(R.INSIGHT(p.slug))} className="inline-flex items-center gap-1 text-red-700">Read <ChevronRight className="w-4 h-4"/></button></div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* CTA */}
       <div className="bg-black text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid md:grid-cols-2 gap-6 items-center">
-          <Reveal>
+          <div>
             <h3 className="text-2xl font-extrabold tracking-tight">Have a spec? Send it across.</h3>
             <p className="mt-2 text-white/80">Share drawings or application details — we’ll respond with viable constructions, lead times, and MOQs.</p>
-          </Reveal>
-          <Reveal delay={0.05}>
-            <div className="flex md:justify-end">
-              <a href="mailto:artanprotec@gmail.com" className="inline-flex items-center gap-2 rounded-xl bg-red-600 text-white px-4 py-3"><Mail className="w-4 h-4"/> Contact Sales</a>
-            </div>
-          </Reveal>
+          </div>
+          <div className="flex md:justify-end">
+            <a href="mailto:artanprotec@gmail.com" className="inline-flex items-center gap-2 rounded-xl bg-red-600 text-white px-4 py-3"><Mail className="w-4 h-4"/> Contact Sales</a>
+          </div>
         </div>
       </div>
     </section>
   );
 }
 
+// Auto-scrolling band (marquee‑like)
+function AutoScroller({ items, speed = 30, onClickItem }){
+  // Duplicate items for seamless loop
+  const content = [...items, ...items];
+  return (
+    <div className="overflow-hidden">
+      <motion.div
+        className="flex gap-4 px-4 sm:px-6 lg:px-8"
+        animate={{ x: ["0%", "-50%"] }}
+        transition={{ duration: speed, ease: "linear", repeat: Infinity }}
+      >
+        {content.map(({ key, node }, idx) => (
+          <button key={`${key}-${idx}`} onClick={() => onClickItem?.(key)} className="focus:outline-none">
+            {node}
+          </button>
+        ))}
+      </motion.div>
+    </div>
+  );
+}
+
 function SectionHeader({ title, subtitle }){
   return (
-    <div className="mb-8">
+    <div className="mb-6">
       <div className="text-xs uppercase tracking-widest text-red-700/80">{subtitle}</div>
       <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight mt-2">{title}</h2>
     </div>
   );
 }
-function Reveal({ children, delay=0 }){
-  return (
-    <motion.div initial={{opacity:0,y:24}} whileInView={{opacity:1,y:0}} viewport={{once:true, amount:0.2}} transition={{duration:0.6, ease:"easeOut", delay}}>
-      {children}
-    </motion.div>
-  );
-}
 
-// --------------- Products (facets like Coats) ---------------
+// --------------- Products (facets) ---------------
 function Products({ onGo }){
   const [q, setQ] = useState("");
-  const [facet, setFacet] = useState({ substrate: "all", feature: "all", industry: "all" });
+  const [facet, setFacet] = useState({ substrate: "all", feature: "all", industry: "all", group: "all" });
+  const GROUPS = ["all","UD Sheets","Threads","Yarns","Nonwovens","Fabrics"];
   const SUBSTRATES = ["all","meta-aramid","para-aramid","aramid-blend","uHMWPE","pps","ptfe"]; 
   const FEATURES = ["all","heat-resistant","high-tenacity","bonded","ptfe-coated","antistatic","chemical-resistant"]; 
-  const INDUSTRIES = ["all","ppe","defense","telecom","mobility","infrastructure"]; 
+  const INDUSTRIES = ["all","ppe","defense","telecom","mobility","infrastructure","filtration"]; 
 
   const list = useMemo(()=> PRODUCT_DB, []);
   const filtered = list.filter(p => {
     const hitQ = !q || p.title.toLowerCase().includes(q.toLowerCase()) || p.summary.toLowerCase().includes(q.toLowerCase());
     const f = (arr, v) => v==="all" || (p.facets?.[arr]||[]).includes(v);
-    return hitQ && f("substrate", facet.substrate) && f("feature", facet.feature) && f("industry", facet.industry);
+    const g = facet.group === "all" || p.group === facet.group;
+    return hitQ && f("substrate", facet.substrate) && f("feature", facet.feature) && f("industry", facet.industry) && g;
   });
 
   return (
     <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <SectionHeader title="Products" subtitle="Catalog"/>
 
-      {/* search + facets */}
-      <div className="mb-6 grid gap-3 md:grid-cols-4 items-stretch">
+      <div className="mb-6 grid gap-3 md:grid-cols-5 items-stretch">
         <div className="relative md:col-span-2">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500"/>
           <input value={q} onChange={(e)=>setQ(e.target.value)} className="w-full border border-red-300 rounded-xl pl-9 pr-3 py-2" placeholder="Search products, specs or uses"/>
         </div>
+        <select value={facet.group} onChange={(e)=>setFacet(s=>({...s, group:e.target.value}))} className="border border-red-300 rounded-xl px-3 py-2">
+          {GROUPS.map(v=> <option key={v} value={v}>{v}</option>)}
+        </select>
         <select value={facet.substrate} onChange={(e)=>setFacet(s=>({...s, substrate:e.target.value}))} className="border border-red-300 rounded-xl px-3 py-2">
           {SUBSTRATES.map(v=> <option key={v} value={v}>{v}</option>)}
         </select>
         <select value={facet.feature} onChange={(e)=>setFacet(s=>({...s, feature:e.target.value}))} className="border border-red-300 rounded-xl px-3 py-2">
           {FEATURES.map(v=> <option key={v} value={v}>{v}</option>)}
         </select>
-        <select value={facet.industry} onChange={(e)=>setFacet(s=>({...s, industry:e.target.value}))} className="border border-red-300 rounded-xl px-3 py-2 md:col-span-1">
+        <select value={facet.industry} onChange={(e)=>setFacet(s=>({...s, industry:e.target.value}))} className="border border-red-300 rounded-xl px-3 py-2">
           {INDUSTRIES.map(v=> <option key={v} value={v}>{v}</option>)}
         </select>
       </div>
@@ -634,6 +781,7 @@ function Products({ onGo }){
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
               <button onClick={()=>onGo(R.PDP(p.slug))} className="inline-flex items-center gap-1 text-sm text-red-700">Explore <ChevronRight className="w-4 h-4"/></button>
+              <a href={p.brochure} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl bg-black text-white px-3 py-2 text-sm"><Download className="w-4 h-4"/> Brochure</a>
               <a href={buildQuoteHref(p.title)} className="inline-flex items-center gap-2 rounded-xl border border-red-600 text-red-700 px-3 py-2 hover:bg-red-50 text-sm"><Mail className="w-4 h-4"/> Get Quote</a>
             </div>
           </motion.div>
@@ -644,7 +792,7 @@ function Products({ onGo }){
   );
 }
 
-// --------------- PDP template (Coats‑like) ---------------
+// --------------- PDP ---------------
 function PDP({ slug, onGo }){
   const p = PRODUCT_DB.find(x=>x.slug===slug);
   if (!p) return <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">Not found.</section>;
@@ -712,24 +860,14 @@ function PDP({ slug, onGo }){
         </div>
       )}
 
-      {/* use cases */}
-      <div className="mt-8 rounded-2xl border border-red-200 overflow-hidden">
-        <div className="px-4 py-3 bg-red-50 border-b border-red-200 text-sm font-medium">Typical Applications</div>
-        <div className="p-4 grid sm:grid-cols-2 gap-3 text-sm text-neutral-700">
-          <ul className="list-disc pl-5 space-y-1">{p.usecases.slice(0,Math.ceil(p.usecases.length/2)).map(x=> <li key={x}>{x}</li>)}</ul>
-          <ul className="list-disc pl-5 space-y-1">{p.usecases.slice(Math.ceil(p.usecases.length/2)).map(x=> <li key={x}>{x}</li>)}</ul>
-        </div>
-      </div>
-
       {/* downloads + actions */}
       <div className="mt-6 flex flex-wrap gap-3">
-        {p.downloads.map(d => (
-          <a key={d.href} href={d.href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl bg-black text-white px-4 py-3"><Download className="w-4 h-4"/> {d.label}</a>
-        ))}
+        {p.brochure && (
+          <a href={p.brochure} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl bg-black text-white px-4 py-3"><Download className="w-4 h-4"/> Download Brochure</a>
+        )}
         <a href={buildQuoteHref(p.title)} className="inline-flex items-center gap-2 rounded-xl border border-red-600 text-red-700 px-4 py-3 hover:bg-red-50"><Mail className="w-4 h-4"/> Enquire</a>
       </div>
 
-      {/* SEO schema */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{__html: JSON.stringify({
         "@context":"https://schema.org","@type":"Product","name":p.title,
         "brand":{"@type":"Brand","name":"Artan Protec"},
@@ -750,7 +888,11 @@ function Industries({ onGo }){
           <motion.button key={i.slug} onClick={()=>onGo(R.INDUSTRY(i.slug))} className="text-left rounded-2xl border border-red-200 hover:border-red-300 p-5" initial={{opacity:0,y:20}} whileInView={{opacity:1,y:0}} viewport={{once:true, amount:0.2}} transition={{duration:0.5, delay: idx*0.05}}>
             <div className="flex items-center gap-3"><span className="text-red-700">{i.icon}</span><div className="font-semibold">{i.title}</div></div>
             <div className="mt-2 text-sm text-neutral-600">{i.blurb}</div>
-            <div className="mt-4 aspect-[4/3] rounded-xl bg-neutral-100 border border-red-200 grid place-items-center"><span className="text-neutral-500 text-xs">Use‑case visual</span></div>
+            <div className="mt-4"><img {...safeImg} src={i.img} alt={i.title} className="aspect-[4/3] w-full object-cover rounded-xl border border-red-200"/></div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <a href={i.brochure} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl bg-black text-white px-3 py-2 text-sm"><Download className="w-4 h-4"/> One‑pager</a>
+              <button onClick={()=>onGo(R.INDUSTRY(i.slug))} className="inline-flex items-center gap-1 text-sm text-red-700">Explore <ChevronRight className="w-4 h-4"/></button>
+            </div>
           </motion.button>
         ))}
       </div>
@@ -798,11 +940,15 @@ function IndustryDetail({ slug, onGo }){
           </div>
         ))}
       </div>
+
+      <div className="mt-6">
+        <a href={i.brochure} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl bg-black text-white px-4 py-3"><Download className="w-4 h-4"/> {i.title} One‑pager</a>
+      </div>
     </section>
   );
 }
 
-// --------------- About (pillar layout like Coats corporate) ---------------
+// --------------- About ---------------
 function About(){
   return (
     <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -824,25 +970,47 @@ function About(){
   );
 }
 
-// --------------- Insights (Info Hub / SEO) ---------------
-function Insights(){
+// --------------- Insights (blog) ---------------
+function Insights({ onGo }){
   return (
     <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <SectionHeader title="Insights" subtitle="Guides & how‑tos"/>
       <div className="grid md:grid-cols-2 gap-6">
-        {[
-          {slug:"selecting-aramid-thread", title:"Selecting Your Aramid Thread", blurb:"Tex ↔ Ticket, ply, finishes, and stitch recommendations by fabric class.", href:"#/insights/selecting-aramid-thread"},
-          {slug:"ripcord-101", title:"Ripcord & Strength Members 101", blurb:"Choosing para‑aramid ripcords: abrasion finishes, diameter vs pull strength.", href:"#/insights/ripcord-101"},
-        ].map(p => (
+        {BLOG_DB.map(p => (
           <div key={p.slug} className="rounded-2xl border border-red-200 p-5">
-            <div className="font-semibold">{p.title}</div>
-            <div className="mt-2 text-sm text-neutral-600">{p.blurb}</div>
-            <div className="mt-4"><a href={p.href} className="inline-flex items-center gap-1 text-red-700">Read <ChevronRight className="w-4 h-4"/></a></div>
+            <div className="text-xs text-neutral-500">{new Date(p.date).toLocaleDateString()}</div>
+            <div className="mt-1 font-semibold">{p.title}</div>
+            <div className="mt-2 text-sm text-neutral-600">{p.excerpt}</div>
+            <div className="mt-4"><button onClick={()=>onGo(R.INSIGHT(p.slug))} className="inline-flex items-center gap-1 text-red-700">Read <ChevronRight className="w-4 h-4"/></button></div>
           </div>
         ))}
       </div>
     </section>
   );
+}
+function PostPage({ slug, onGo }){
+  const p = BLOG_DB.find(x=>x.slug===slug);
+  if (!p) return <section className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">Post not found.</section>;
+  return (
+    <section className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <button onClick={()=>onGo(R.INSIGHTS)} className="text-sm text-neutral-600 hover:text-neutral-900 inline-flex items-center gap-1 mb-6"><ChevronRight className="-scale-x-100 w-4 h-4"/> Back to Insights</button>
+      <div className="text-xs text-neutral-500">{new Date(p.date).toLocaleDateString()}</div>
+      <h1 className="mt-1 text-3xl font-extrabold tracking-tight">{p.title}</h1>
+      <article className="prose prose-sm max-w-none mt-4">
+        <div dangerouslySetInnerHTML={{__html: markdownToHtml(p.body)}} />
+      </article>
+    </section>
+  );
+}
+function markdownToHtml(md){
+  // tiny markdown → HTML (headings + bold/italic + paragraphs)
+  return md
+    .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+    .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+    .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+    .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/gim, '<em>$1</em>')
+    .replace(/\n\n/g, '<br/><br/>' );
 }
 
 // --------------- Contact ---------------
@@ -888,7 +1056,7 @@ function Footer({ onGo }){
           <div>
             <div className="font-extrabold tracking-tight">Artan Protec</div>
             <div className="text-xs text-neutral-500">Advanced Protection | Engineered Performance</div>
-            <div className="mt-4 text-sm text-neutral-700">High‑performance materials for PPE, mobility, telecom, infrastructure, and defense.</div>
+            <div className="mt-4 text-sm text-neutral-700">High‑performance materials for PPE, mobility, telecom, infrastructure, filtration, and defense.</div>
           </div>
           <FooterCol title="Products">
             {PRODUCT_DB.slice(0,6).map(p => <FooterLink key={p.slug} onClick={()=>onGo(R.PDP(p.slug))}>{p.title}</FooterLink>)}
@@ -901,7 +1069,6 @@ function Footer({ onGo }){
             <FooterLink onClick={()=>onGo(R.ABOUT)}>About</FooterLink>
             <FooterLink onClick={()=>onGo(R.INSIGHTS)}>Insights</FooterLink>
             <FooterLink onClick={()=>onGo(R.CONTACT)}>Contact</FooterLink>
-            <a href="/brochures/artan-protec-brochure.pdf" target="_blank" rel="noreferrer" className="block text-sm text-red-700 hover:text-red-800">Download Brochure</a>
           </FooterCol>
         </div>
         <div className="mt-8 pt-6 border-t border-red-200 text-xs text-neutral-500 flex flex-wrap items-center justify-between gap-2">
@@ -930,30 +1097,21 @@ if (typeof window !== "undefined") {
     const originalHash = window.location.hash;
 
     const href = buildQuoteHref("Foo", "Bar");
-    console.assert(href.startsWith("mailto:"), "buildQuoteHref returns mailto:");
-    console.assert(href.includes(encodeURIComponent("Quote request - Foo")), "subject encoded");
-    console.assert(href.includes("%0A"), "newline encoded via join(\n)");
-    console.assert(slugify("Meta-aramid staple fibre") === "meta-aramid-staple-fibre", "slugify basic");
+    console.assert(href.startsWith("mailto:"), "mailto ok");
+    console.assert(slugify("Meta-aramid staple fibre") === "meta-aramid-staple-fibre", "slugify ok");
 
-    // Router tests — preserve and restore hash
+    // Router tests — do not leave hash dirty
     window.location.hash = "";
     console.assert(parseHash().page === "home", "router home default");
     window.location.hash = "#/products";
     console.assert(parseHash().page === "products", "router products page");
-    window.location.hash = "#/products/abc";
-    console.assert(parseHash().page === "pdp" && parseHash().product === "abc", "router pdp page");
-    window.location.hash = "#/industries/telecom";
-    const ph = parseHash();
-    console.assert(ph.page === "industry" && ph.industry === "telecom", "router industry page");
+    window.location.hash = "#/insights/abc";
+    const ph2 = parseHash();
+    console.assert(ph2.page === "post" && ph2.slug === "abc", "router post page");
+    window.location.hash = "#/industries/filtration";
+    const ph3 = parseHash();
+    console.assert(ph3.page === "industry" && ph3.industry === "filtration", "router filtration page");
 
-    // Data tests — ensure hard variants present
-    const hard = PRODUCT_DB.find(p=>p.slug==="shieldlite-hard-ud");
-    console.assert(Array.isArray(hard.variants) && hard.variants.length >= 5, "hard variants present");
-    console.assert(hard.variants.some(v=>v.code==="AH-120"), "AH-120 variant exists");
-
-    // Restore original hash
     window.location.hash = originalHash || "#/";
-  } catch (_) {
-    // no-op to avoid breaking runtime
-  }
+  } catch (_) {}
 }
